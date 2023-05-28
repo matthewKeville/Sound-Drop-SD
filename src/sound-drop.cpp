@@ -6,6 +6,7 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
+#include <thread>
 #include "shader.cpp"
 #include "Line.h"
 #include "Ball.h"
@@ -58,6 +59,25 @@ float mouseYInView() {
   return (-2.0f * mouseY / (float) windowHeight ) + 1.0f;
 }
 
+void play_bounce_audio(float line_width) {
+  //system("aplay res/original/Highlight.wav");
+  std::string audio = "res/original/Highlight.wav";
+  unsigned int base_rate = 32006;
+  float log2_line_width = log(line_width) / log(2);
+  float scale = pow(2,-log2_line_width - 2);
+  unsigned int rate = ceil(scale * base_rate);
+  char cmd[600];
+  sprintf(cmd,"play -r %i %s",rate,audio.c_str());
+  /*
+  std::cout << " line_width " << line_width << std::endl;
+  std::cout << " scale " << scale << std::endl;
+  std::cout << " rate " << rate << std::endl;
+  */
+  std::cout << cmd << std::endl;
+  //system("play -r //sample_rate res/original/Highlight.wav");
+  system(cmd);
+}
+
 void update_balls() {
 
   //should a ball spawn?
@@ -93,6 +113,12 @@ void update_balls() {
       if (!intersect) {
         continue;
       }
+
+      //threads must be detached or joined before the exit of the calling scope
+      float line_width = sqrt(pow(lvert[3] - lvert[0],2) + pow(lvert[4] - lvert[1],2));
+      std::thread audio_thread(play_bounce_audio,line_width);
+      audio_thread.detach();
+
 
       if ( lvert[3] == lvert[0] ) {
         //we just reflect the velocity vector on the x-axis
