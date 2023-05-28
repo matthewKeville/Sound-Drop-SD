@@ -8,11 +8,10 @@
 #include <vector>
 #include "shader.cpp"
 #include "Line.h"
+#include "Ball.h"
 
-const int MAX_LINES = 12;
-//lines
-std::vector<Line*> lines;
-float preview[2*3];             //vertex data for preview line
+const int MAX_LINES = 50;
+const int MAX_BALLS = 30; 
 
 bool drawing = false;
 double mouseX;                  //glfw window coordinates
@@ -21,13 +20,33 @@ double mouseY;
 int windowWidth;                //glfw window dimensions
 int windowHeight;
 Shader* lineShader;
-Shader* lineShader2;
+Shader* ballShader;
+
+//lines
+std::vector<Line*> lines;
+float preview[2*3]{};           //vertex data for preview line
+
+//balls
+double ballSpawnX = -0.5f;
+double ballSpawnY =  0.75f;
+double ballRadius =  0.05f; 
+double ballGravity =  -0.0002f;
+double collisionRestitution = 0.95f;
+double lastSpawn;         //time of last spawn
+//double spawnRate = 1.0f;  //balls per second
+double spawnRate = 1.0f;  //balls per second
+std::vector<Ball*> balls;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
+bool testLineSegmentIntersection(float xa0,float ya0,float xaf,float yaf,float xb0,float yb0,float xbf,float ybf,float* solx, float* soly);
+
+float toDegrees(float radians) {
+  return radians * 360.0f / (2 * M_PI);
+}
 
 //transform mouseX to a view plane coordinate (-1.0,1.0)
 float mouseXInView() {
@@ -37,6 +56,118 @@ float mouseXInView() {
 //transform mouseY to a view plane coordinate (-1.0,1.0)
 float mouseYInView() {
   return (-2.0f * mouseY / (float) windowHeight ) + 1.0f;
+}
+
+void update_balls() {
+
+  //should a ball spawn?
+  if ( glfwGetTime() > lastSpawn + (1/spawnRate) ) {
+    //std::cout << "spawn should be true" << std::endl;
+    lastSpawn = glfwGetTime();
+    if ( balls.size() != MAX_BALLS ) {
+      balls.push_back(new Ball(ballShader,100,ballSpawnX,ballSpawnY));
+    }
+  }
+
+  auto itty = balls.begin();
+  while (itty != balls.end()) {
+    Ball* bp = *itty;
+
+    float cxf = bp->cx; //end position
+    float cyf = bp->cy;
+    float vyf = bp->vy; //end velocity
+    float vxf = bp->vx; 
+
+    //free falling?
+    vyf = bp->vy += ballGravity; 
+    cxf = bp->cx + bp->vx;
+    cyf = bp->cy + bp->vy;
+
+    //collision with line?
+    for ( auto lp : lines ) {
+      float* lvert = lp->vertices;
+      float solx;
+      float soly;
+      bool intersect = testLineSegmentIntersection(lvert[0],lvert[1],lvert[3],lvert[4],bp->cx,bp->cy,cxf,cyf,&solx,&soly);
+
+      if (!intersect) {
+        continue;
+      }
+
+      if ( lvert[3] == lvert[0] ) {
+        //we just reflect the velocity vector on the x-axis
+        vxf *= -1;
+        cxf = bp->cx + vxf;
+      } else {
+        //find the normal vectors
+        //we have two possible normals for our line segment, the right one
+        //will have an obtuse angle the velocity vector, so we check the sign
+        //of the dot product
+        float line_slope = (lvert[4] - lvert[1]) / (lvert[3] - lvert[0]);
+        float normal_slope = -(1/line_slope);
+        //now we have a "normal" vector with <1,normal_slope> but we need to find the right orientation (sign)
+        //compare sign of normal dot velocity
+        bool flipped_normal = (1.0f * vxf) + (normal_slope * vyf) > 0; // ? 
+        float normal_x = flipped_normal ? -1 : 1;
+        float normal_y = normal_slope * (flipped_normal ? -1 : 1);
+        float normal_angle = atan2(normal_y,normal_x); 
+
+        float incline_angle = normal_angle - (M_PI/2);
+
+        //find the incident angle between normal and the 'flipped' velocity vector
+        float normal_dot_velocity = vxf * normal_x + vyf * normal_y;
+        float normal_norm = sqrt(normal_x * normal_x + normal_y * normal_y);
+        float velocity_norm = sqrt(vxf * vxf + vyf * vyf);
+        float incident_angle = acos( normal_dot_velocity / ( normal_norm * velocity_norm ));
+        if ( incident_angle > M_PI/2 ) { incident_angle = M_PI - incident_angle; }
+
+        //do we add or subtract the incident angle to the normal angle?
+        float velocity_angle = atan2(vyf,vxf);
+        bool add_incidence = cos(velocity_angle - incline_angle) < 0;
+
+        //find resultant angle
+        float resultant_angle = atan2(normal_y,normal_x) + (add_incidence ? incident_angle  : -incident_angle );
+        
+        //rotate the velocity vector by this angle
+        vxf = collisionRestitution * (velocity_norm * cos(resultant_angle));
+        vyf = collisionRestitution * (velocity_norm * sin(resultant_angle) + ballGravity);
+        cxf = bp->cx + vxf;
+        cyf = bp->cy + vyf;
+
+        /*
+        char msg[200];
+        sprintf(msg,"normal angle : %f\nincline_angle : %f\nvelocity_angle : %f\nincident_angle : %f\n resultant_angle : %f",
+          toDegrees(normal_angle),
+          toDegrees(incline_angle),
+          toDegrees(velocity_angle),
+          toDegrees(incident_angle),
+          toDegrees(resultant_angle));
+        std::cout << "normal x : " << normal_x << " normal y : " << normal_y << std::endl;
+        std::cout << "vxf " << vxf << " vyf " << vyf << std::endl;
+        std::cout << msg << std::endl;
+        */
+      }
+
+    }
+
+    //set the final state of the ball
+
+    bp->vx = vxf;
+    bp->vy = vyf;
+    bp->cx = cxf;
+    bp->cy = cyf;
+
+    //should ball be deleted?
+    if (bp->cy < -1.5) {
+      delete bp;
+      itty = balls.erase(itty);
+    } else {
+      itty++;
+    }
+
+  }
+
+  //should a ball be deleted?
 }
 
 int main() {
@@ -73,6 +204,7 @@ int main() {
   glfwSetCursorPosCallback(window, mouse_callback);
 
   lineShader = new Shader("shaders/line.vs","shaders/line.fs");
+  ballShader = new Shader("shaders/ball.vs","shaders/line.fs");
 
   //load default preview data
   
@@ -98,19 +230,27 @@ int main() {
   glEnableVertexAttribArray(0); 
   glBindVertexArray(0);
 
+  //intersection buffer
+
   //general opengl settings
 
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); 
   glLineWidth(3.0f);
+  glPointSize(10.0f);
+
   
   while(!glfwWindowShouldClose(window))
   {
     processInput(window);
     glfwPollEvents();
 
+    update_balls();
+    //check_intersections();
+
     //clear..
-    glClearColor(0.07f, 0.0f, 0.93f, 0.0f); 
+    glClearColor(0.0f, 0.0f, 1.0f, 0.0f); 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
+
 
     //draw lines
     for (auto lp : lines) {
@@ -137,7 +277,9 @@ int main() {
 
     }
 
-
+    for ( auto bp : balls ) {
+      bp->draw();
+    }
                                                                                                
     glfwSwapBuffers(window); 
   }
@@ -158,11 +300,10 @@ void processInput(GLFWwindow* window) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     glfwSetWindowShouldClose(window,true);
   if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-    for (auto lp: lines) {
-      lp->print();
-    }
-  }
+  } 
+
 }
+
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
@@ -218,5 +359,50 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
   mouseX = xpos;
   mouseY = ypos;
+}
+
+/*
+ * this implementation has a flaw, when line segments are parallel to the x-axis, we get a nonzero slope, which is contradictory 
+ * this is critical because when balls drop from the spawn the vector from there previous location to there future location
+ * is precisely parallel to the y axis. As a bandage, ball spawn will be modified to have a tiny drift in the x direction in the absence
+ * of a solution to this dillema
+ */
+bool testLineSegmentIntersection(float xa0,float ya0,float xaf,float yaf,float xb0,float yb0,float xbf,float ybf,float* solx, float* soly) {
+
+  float dax = (xaf - xa0);
+  float day = (yaf - ya0);
+  if (!dax) { return false; } //divide by zero guard
+  float ma  = day / dax;
+
+  float dbx = (xbf - xb0);
+  float dby = (ybf - yb0);
+  if (!dbx) { return false; } //divide by zero guard
+  float mb  = dby / dbx;
+  
+  //using the point slope equation for a line | y - y1 = m (x - x1) 
+  //we find a solution to the intersection of our line segments extended to all of the Reals
+
+  if (ma == mb) { return false; } //divide by zero guard
+  float solvex = ( (ma * xa0) - (mb * xb0) + yb0 - ya0 );
+  solvex/=(ma-mb);
+
+  //now we check if solx is in the intersection of our segments x domains
+  float axmin = std::min(xa0,xaf);
+  float axmax = std::max(xa0,xaf);
+  float bxmin = std::min(xb0,xbf);
+  float bxmax = std::max(xb0,xbf);
+
+  if ( solvex > axmin && solvex < axmax 
+        && solvex > bxmin && solvex < bxmax ) {
+    *solx = solvex;
+    *soly = ma * (solvex - xa0) + ya0;
+    return true;
+  }
+
+  solx = 0;
+  soly = 0;
+  return false;
+
+
 }
 

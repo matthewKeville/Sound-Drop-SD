@@ -16,8 +16,8 @@ Line::Line(Shader* shader,float x0,float y0, float xf, float yf) {
   glGenVertexArrays(1, &vao);
   glGenBuffers(1,&vbo);
   //assemble vertex array
-  glBindVertexArray(vao);
   glBindBuffer(GL_ARRAY_BUFFER,vbo);
+  glBindVertexArray(vao);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
   glEnableVertexAttribArray(0); 
   glBindVertexArray(0);
@@ -34,8 +34,8 @@ Line::Line(Shader* shader,float x0,float y0, float xf, float yf) {
 void Line::draw() {
   shader->use();
   int ColorLoc = glGetUniformLocation(shader->ID, "Color"); 
-  glBindVertexArray(vao); 
   glBindBuffer(GL_ARRAY_BUFFER,vbo);
+  glBindVertexArray(vao); 
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 2 * 3, vertices);
   glUniform3f(ColorLoc,1.0f,0.0f,1.0f);
   glDrawArrays(GL_LINES, 0, 2);
