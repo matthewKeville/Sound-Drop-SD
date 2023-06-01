@@ -7,9 +7,11 @@
 #include <cmath>
 #include <vector>
 #include <thread>
+#include <tuple>
 #include "shader.cpp"
 #include "Line.h"
 #include "Ball.h"
+#include "util.h"
 
 const int MAX_LINES = 50;
 const int MAX_BALLS = 30; 
@@ -59,22 +61,23 @@ float mouseYInView() {
   return (-2.0f * mouseY / (float) windowHeight ) + 1.0f;
 }
 
+
+
 void play_bounce_audio(float line_width) {
   //system("aplay res/original/Highlight.wav");
   std::string audio = "res/original/Highlight.wav";
   unsigned int base_rate = 32006;
-  float log2_line_width = log(line_width) / log(2);
-  float scale = pow(2,-log2_line_width - 2);
+  float scale = keville::util::line_width_to_frequency_multiple_chromatic(line_width);
+
   unsigned int rate = ceil(scale * base_rate);
+  std::cout << " rate " << rate << std::endl;
+
   char cmd[600];
   sprintf(cmd,"play -r %i %s",rate,audio.c_str());
-  /*
   std::cout << " line_width " << line_width << std::endl;
   std::cout << " scale " << scale << std::endl;
   std::cout << " rate " << rate << std::endl;
-  */
   std::cout << cmd << std::endl;
-  //system("play -r //sample_rate res/original/Highlight.wav");
   system(cmd);
 }
 

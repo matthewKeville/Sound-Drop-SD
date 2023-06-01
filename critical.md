@@ -56,3 +56,15 @@ for ( i = 2; i < 2; i++ ) {
 
 the dot product returns the relative angle between vectors, what about a directed angle counterclockwise from v1 to v2?
 https://stackoverflow.com/questions/14066933/direct-way-of-computing-the-clockwise-angle-between-two-vectors/16544330#16544330
+
+-- sound
+
+https://homepage.ntu.edu.tw/~karchung/phonetics%20II%20page%20eight.htm
+https://musiclab.chromeexperiments.com/Spectrogram/
+http://salfordacoustics.co.uk/sound-waves/standing-waves
+
+---
+
+a great resource on pitch shifting
+
+https://www.guitarpitchshifter.com/

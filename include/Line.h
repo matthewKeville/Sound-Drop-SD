@@ -2,6 +2,7 @@
 #define LINE_H
 
 #include "shader.h"
+#include <tuple>
 
 class Line {
   public:
@@ -12,6 +13,10 @@ class Line {
     Line(Shader*,float,float,float,float);
     Shader* shader;
     void print();
+
+    std::tuple<float,float,float> color;
+    unsigned int frequency;
+
 };
 
 #endif
