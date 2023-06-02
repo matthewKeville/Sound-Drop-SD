@@ -12,6 +12,9 @@
 #include "Line.h"
 #include "Ball.h"
 #include "util.h"
+#include "soloud.h"
+#include "soloud_wav.h"
+#include "soloud_thread.h"
 
 const int MAX_LINES = 50;
 const int MAX_BALLS = 30; 
@@ -40,12 +43,18 @@ double lastSpawn;         //time of last spawn
 double spawnRate = 1.0f;  //balls per second
 std::vector<Ball*> balls;
 
+
+SoLoud::Soloud soloud;
+SoLoud::Wav sample;
+
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
 bool testLineSegmentIntersection(float xa0,float ya0,float xaf,float yaf,float xb0,float yb0,float xbf,float ybf,float* solx, float* soly);
+void constrainedPreviewLineTerminal(float& xf,float& yf);
 
 float toDegrees(float radians) {
   return radians * 360.0f / (2 * M_PI);
@@ -61,24 +70,11 @@ float mouseYInView() {
   return (-2.0f * mouseY / (float) windowHeight ) + 1.0f;
 }
 
-
-
-void play_bounce_audio(float line_width) {
-  //system("aplay res/original/Highlight.wav");
-  std::string audio = "res/original/Highlight.wav";
-  unsigned int base_rate = 32006;
-  float scale = keville::util::line_width_to_frequency_multiple_chromatic(line_width);
-
-  unsigned int rate = ceil(scale * base_rate);
-  std::cout << " rate " << rate << std::endl;
-
-  char cmd[600];
-  sprintf(cmd,"play -r %i %s",rate,audio.c_str());
-  std::cout << " line_width " << line_width << std::endl;
-  std::cout << " scale " << scale << std::endl;
-  std::cout << " rate " << rate << std::endl;
-  std::cout << cmd << std::endl;
-  system(cmd);
+void play_bounce_audio(Line* lp) {
+  int handle = soloud.play(sample);
+  int playback_rate = keville::util::semitone_adjusted_rate(keville::util::SAMPLE_BASE_RATE,lp->semitone);
+  soloud.setSamplerate(handle,playback_rate);
+  std::cout << "soloud playing " << std::endl;
 }
 
 void update_balls() {
@@ -119,7 +115,7 @@ void update_balls() {
 
       //threads must be detached or joined before the exit of the calling scope
       float line_width = sqrt(pow(lvert[3] - lvert[0],2) + pow(lvert[4] - lvert[1],2));
-      std::thread audio_thread(play_bounce_audio,line_width);
+      std::thread audio_thread(play_bounce_audio,lp);
       audio_thread.detach();
 
 
@@ -163,18 +159,6 @@ void update_balls() {
         cxf = bp->cx + vxf;
         cyf = bp->cy + vyf;
 
-        /*
-        char msg[200];
-        sprintf(msg,"normal angle : %f\nincline_angle : %f\nvelocity_angle : %f\nincident_angle : %f\n resultant_angle : %f",
-          toDegrees(normal_angle),
-          toDegrees(incline_angle),
-          toDegrees(velocity_angle),
-          toDegrees(incident_angle),
-          toDegrees(resultant_angle));
-        std::cout << "normal x : " << normal_x << " normal y : " << normal_y << std::endl;
-        std::cout << "vxf " << vxf << " vyf " << vyf << std::endl;
-        std::cout << msg << std::endl;
-        */
       }
 
     }
@@ -200,6 +184,17 @@ void update_balls() {
 }
 
 int main() {
+
+  //initialize soloud
+  soloud.init();
+
+  //load sound samples
+  sample.load("res/sine_440hz_44100_100ms.wav"); //44100
+  keville::util::SAMPLE_BASE_RATE = 44100;
+  //sample.load("res/glock_96000_1s.wav"); //44100
+  //keville::util::SAMPLE_BASE_RATE = 96000;
+  //sample.load("res/Highlight.wav"); // 32006;
+  //SAMPLE_BASE_RATE = 32006;
 
   //initialize glfw
 
@@ -264,7 +259,7 @@ int main() {
   //general opengl settings
 
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); 
-  glLineWidth(3.0f);
+  glLineWidth(6.0f);
   glPointSize(10.0f);
 
   
@@ -277,7 +272,7 @@ int main() {
     //check_intersections();
 
     //clear..
-    glClearColor(0.0f, 0.0f, 1.0f, 0.0f); 
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f); 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
 
@@ -289,19 +284,25 @@ int main() {
     //draw preview
     if (drawing) {
 
-      //convert mouse coordinates to view plane coordinates
-      float xPos = mouseXInView();
-      float yPos = mouseYInView();
+      float xPos;
+      float yPos;
+      constrainedPreviewLineTerminal(xPos,yPos);
+
       preview[3] = xPos;
       preview[4] = yPos;
       preview[5] = 0.0f;
+
+      float width = sqrt( pow(preview[4] - preview[1],2) + pow(preview[3] - preview[0],2));
+      int semitone = keville::util::SEMITONE_WIDTH_MAP(width);
+      std::tuple<float,float,float> color = keville::util::SEMITONE_COLOR_MAP(semitone);
 
       lineShader->use();
       int ColorLoc = glGetUniformLocation(lineShader->ID, "Color"); 
       glBindVertexArray(drawPreviewVao); 
       glBindBuffer(GL_ARRAY_BUFFER, drawPreviewVbo);
       glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(preview), preview);
-      glUniform3f(ColorLoc,1.0f,0.0f,0.0f);
+      //glUniform3f(ColorLoc,1.0f,0.0f,0.0f);
+      glUniform3f(ColorLoc,std::get<0>(color),std::get<1>(color),std::get<2>(color));
       glDrawArrays(GL_LINES, 0, 2);
 
     }
@@ -315,6 +316,7 @@ int main() {
 
   //release glfw resources
   glfwTerminate();
+  soloud.deinit();
   return 0;
 
 }
@@ -341,8 +343,6 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         return;
       }
       if ( !drawing ) {
-        //anchor coordinate set
-        std::cout << "line drawing start" << std::endl;
 
         //map mouse coordinates to view plane
         float xPos = mouseXInView();
@@ -356,18 +356,15 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         drawing = true;
 
       } else { 
-        //the second coordinate has been selected
 
-        float xPos = mouseXInView();
-        float yPos = mouseYInView();
+        float xPos;
+        float yPos;
 
-        std::cout << "line drawing end" << std::endl;
-        char msg[120];
-        sprintf(msg,"x0 %f y0 %f xf %f yf %f",preview[0],preview[1],xPos,yPos);
-        std::cout << msg << std::endl;
+        constrainedPreviewLineTerminal(xPos,yPos);
+        
+        //create a Line instance of this line
 
         lines.push_back(new Line(lineShader,preview[0],preview[1],xPos,yPos));
-
         drawing = false;
 
       }
@@ -388,6 +385,35 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
   mouseX = xpos;
   mouseY = ypos;
+}
+
+
+/* 
+ * place the final coordinate of the preview line after being subjected
+ * to the MAX and MIN constraints for lines 
+ */
+void constrainedPreviewLineTerminal(float& xPos,float& yPos) {
+
+  xPos = mouseXInView();
+  yPos = mouseYInView();
+
+  //constrain the line between our bounds
+  
+  float vecX = xPos-preview[0];
+  float vecY = yPos-preview[1];
+  float distance = sqrt( pow(vecX,2) + pow(vecY,2) );
+
+
+  if ( distance > keville::util::MAX_LINE_WIDTH ) {
+    xPos = preview[0] + (vecX/distance)*keville::util::MAX_LINE_WIDTH;
+    yPos = preview[1] + (vecY/distance)*keville::util::MAX_LINE_WIDTH;
+  }
+
+  if ( distance < keville::util::MIN_LINE_WIDTH ) {
+    xPos = preview[0] + (vecX/distance)*keville::util::MIN_LINE_WIDTH;
+    yPos = preview[1] + (vecY/distance)*keville::util::MIN_LINE_WIDTH;
+  }
+
 }
 
 /*

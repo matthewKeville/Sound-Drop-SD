@@ -27,23 +27,17 @@ Line::Line(Shader* shader,float x0,float y0, float xf, float yf) {
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 * 3, vertices, GL_STATIC_DRAW);//stores 2 lines
 
-  //assign tone (frequency)
+  //assign tone & color
   float line_width = sqrt( pow(yf-y0,2) + pow(xf-x0,2) );
-  float scale = keville::util::line_width_to_frequency_multiple_chromatic(line_width);
-  frequency = ceil(scale * keville::util::BASE_FREQUENCY_RATE);
-  int step = keville::util::line_width_to_frequency_multiple_chromatic_exponent(line_width);
-  //this is magic for demo purposes urgent refactor
-  //assign color
-  if ( step > 0 ) {
-  color = keville::util::COLOR_WHEEL_12[step % 12];
-  }
-  color = keville::util::COLOR_WHEEL_12[-step % 12];
-  std::cout << "line step is " << step << std::endl;
 
-  char msg[120];
-  sprintf(msg,"line create data\nx0:%f\ty0:%f\txf:%f\tyf:%f",x0,y0,xf,yf);
-  std::cout << msg << std::endl;
+  semitone = keville::util::SEMITONE_WIDTH_MAP(line_width);
+  color = keville::util::SEMITONE_COLOR_MAP(semitone);
+
+  //assign color
+  std::cout << "line semitone : " << semitone << std::endl;
+  std::cout << "line width    : " << line_width << std::endl;
 }
+
 
 void Line::draw() {
   shader->use();

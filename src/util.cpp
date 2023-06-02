@@ -8,23 +8,6 @@
 //
 namespace keville::util {
 
-//map line widths to piano key numbers
-int line_width_to_piano_key(float line_width,int base_key) {
-  float log2_line_width = log(line_width) / log(2);
-  float scale = pow(2,-log2_line_width - 2);
-  int key = base_key + ceil(12.0f*scale);
-  return key;
-}
-
-//map 1 line width to 1/4 frequency, map 1/2 to 1/2 frequency , 1 to 1 ...
-unsigned int line_width_to_frequency_multiple(float line_width) {
-  float base_rate = 32006;
-  float log2_line_width = log(line_width) / log(2);
-  float scale = -log2_line_width - 2;
-  unsigned int rate = ceil(scale * base_rate);
-  return rate;
-}
-
 //map piano key numbers to frequencies (unused)
 unsigned int piano_key_to_frequency(int key) {
   int reference_key = 44;
@@ -33,13 +16,12 @@ unsigned int piano_key_to_frequency(int key) {
   return pitch;
 }
 
-/*
-float line_width_to_frequency_multiple_chromatic(float line_width) {
-  float octave_radius = 2;
-  //float line_width_center  = 0.5f;
+//this construction maps an in infinite number of octaves (which we bound by a set number of octaves)
+//the span of a note is proportional to the span of the line, as the line gets smaller, more octaves are 
+//traversed exponentially. This gives the affect that a doubled line is double pitch.
+int line_width_to_semitone_logarithmic_chromatic(float line_width,unsigned int octaves) {
   float line_width_center  = 0.25f;
   float center_offset = -1.0f*pow(1.0f/(line_width_center/2),1.0f/2.0f) + 1.0f;
-
   //break line width into a reversed logarithm scale
   float log2_line_width = log(line_width) / log(2);
   //float scale = -log2_line_width - 1; //  1/4 should be same pitch
@@ -52,53 +34,42 @@ float line_width_to_frequency_multiple_chromatic(float line_width) {
   //calculate a scalar such that scaling any frequency by this number
   //results in a pitch that exists in an equal temperment chromatic scale
   //(where the base pitch is arbitrary)
-  float exponent = iscale*12.0f + nearest_12th;
-  std::cout << "raw exp " << exponent << std::endl;
-  //clamp the exponent so the greatest scaling is 8x
-  exponent = std::min(octave_radius*12.0f,exponent);
-  exponent = std::max(-1.0f*octave_radius*12.0f,exponent);
-  float final_scale = pow(pow(2,1.0f/12.0f),exponent); //note if i do 1/12 it's fucked because of templating
-  std::cout << "exp " << exponent << std::endl;
-  return final_scale;
-}
-*/
-
-
-//this is fucked (& line_width_to_frequency_multiple_chromatic) refactor urgent
-int line_width_to_frequency_multiple_chromatic_exponent(float line_width) {
-  float octave_radius = 2;
-  //float line_width_center  = 0.5f;
-  float line_width_center  = 0.25f;
-  float center_offset = -1.0f*pow(1.0f/(line_width_center/2),1.0f/2.0f) + 1.0f;
-
-  //break line width into a reversed logarithm scale
-  float log2_line_width = log(line_width) / log(2);
-  //float scale = -log2_line_width - 1; //  1/4 should be same pitch
-  float scale = -log2_line_width + center_offset; //  1/4 should be same pitch
-  //break this point into whole and fractional parts
-  float iscale;
-  float fpscale = std::modf(scale, &iscale); 
-  //find the nearest 12th that fpscale fits into
-  float nearest_12th = floor(fpscale*12.0f); 
-  //calculate a scalar such that scaling any frequency by this number
-  //results in a pitch that exists in an equal temperment chromatic scale
-  //(where the base pitch is arbitrary)
-  float exponent = iscale*12.0f + nearest_12th;
-  std::cout << "raw exp " << exponent << std::endl;
-  //clamp the exponent so the greatest scaling is 8x
-  exponent = std::min(octave_radius*12.0f,exponent);
-  exponent = std::max(-1.0f*octave_radius*12.0f,exponent);
-  return (int) exponent;
+  float semitones = iscale*12.0f + nearest_12th;
+  std::cout << "raw exp " << semitones << std::endl;
+  //clamp the semitone between our octave range
+  semitones = std::min(octaves*12.0f,semitones);
+  semitones = std::max(-1.0f*octaves*12.0f,semitones);
+  return (int) semitones;
 }
 
-float line_width_to_frequency_multiple_chromatic(float line_width) {
-  int exponent = line_width_to_frequency_multiple_chromatic_exponent(line_width);
-  float final_scale = pow(pow(2,1.0f/12.0f),exponent); //note if i do 1/12 it's fucked because of templating
-  std::cout << "exp " << exponent << std::endl;
-  return final_scale;
+
+//semitone_radius : how many semitone in each direction
+int line_width_to_semitone_linear_chromatic(float line_width,unsigned int semitone_radius) {
+  float line_span  = keville::util::MAX_LINE_WIDTH-keville::util::MIN_LINE_WIDTH;
+  float center = keville::util::MIN_LINE_WIDTH + (line_span/2.0f);
+  float width_bucket = (line_span) / (2.f * semitone_radius); 
+  float center_distance = center - line_width ;
+  float fsemi = center_distance / width_bucket;
+  int semitones = floor(fsemi);
+  return semitones;
 }
 
-  unsigned int BASE_FREQUENCY_RATE = 32006;
+//return a rate in hz, that is 'semitones' away from base_rate
+unsigned int semitone_adjusted_rate(float base_rate,int semitones) {
+  float scale_factor = pow(pow(2,1.0f/12.0f),semitones); 
+  return ceil(base_rate*scale_factor);
+}
+
+std::tuple<float,float,float> semitone_color_chromatic(int semitone) {
+  if ( semitone > 0 ) {
+    return keville::util::COLOR_WHEEL_12[semitone % 12];
+  }
+  return keville::util::COLOR_WHEEL_12[-semitone % 12];
+}
+
+  unsigned int SAMPLE_BASE_RATE = 0;
+  const float MAX_LINE_WIDTH = 2.0f;
+  const float MIN_LINE_WIDTH = 0.1f;
   const std::tuple<float,float,float> COLOR_RED (148.0f/255.0f,0.0f,221.0f/255.0f);
   const std::tuple<float,float,float> COLOR_RED_ORANGE (100.0f/255.0f,32.5f/255.0f,28.6f/255.0f); //12 tone
   const std::tuple<float,float,float> COLOR_ORANGE (1.0f,127.0f/255.0f,0.0f);
@@ -121,6 +92,17 @@ float line_width_to_frequency_multiple_chromatic(float line_width) {
     COLOR_GREEN,COLOR_GREEN_BLUE,
     COLOR_BLUE,COLOR_INDIGO,
     COLOR_VIOLET,COLOR_VIOLET_RED
+  };
+
+  //defaults
+  std::function<int(float)> SEMITONE_WIDTH_MAP = 
+  [] (float width) {
+    return line_width_to_semitone_linear_chromatic(width,6); 
+  };
+  //SEMITONE_WIDTH_MAP = semitone_color_chromatic;
+  std::function<std::tuple<float,float,float>(int)> SEMITONE_COLOR_MAP = 
+  [] (int semitones) {
+    return semitone_color_chromatic(semitones);
   };
 
 }

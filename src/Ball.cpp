@@ -7,7 +7,6 @@
 //geometries. This code is for the creation of vertex data that represent ngons
 Ball::Ball(Shader* shader,int sides,float cx, float cy) {
   this->radius = 0.02f;
-
   this->shader = shader;
   this->sides = sides;
   this->cx = cx;
@@ -76,7 +75,7 @@ void Ball::draw() {
   shader->use();
 
   int ColorLoc = glGetUniformLocation(shader->ID, "Color"); 
-  glUniform3f(ColorLoc,0.75f,0.5f,1.0f);
+  glUniform3f(ColorLoc,1.f,1.f,1.f);
   int WorldPositionLoc = glGetUniformLocation(shader->ID, "WorldPosition"); 
   glUniform2f(WorldPositionLoc,this->cx,this->cy);
 

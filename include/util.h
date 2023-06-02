@@ -2,25 +2,26 @@
 #define UTIL_H
 
 #include <tuple>
+#include <functional>
 
 namespace keville::util {
-
-
-//map line width to piano key numbers
-int line_width_to_piano_key(float line_width,int base_key);
-
-//map 1 line width to 1/4 frequency, map 1/2 to 1/2 frequency , 1 to 1 ...
-unsigned int line_width_to_frequency_multiple(float line_width) ;
 
 //map piano key numbers to frequencies (unused)
 unsigned int piano_key_to_frequency(int key) ;
 
-//please please please refactor these
-float line_width_to_frequency_multiple_chromatic(float line_width);
-int line_width_to_frequency_multiple_chromatic_exponent(float line_width); 
+//new
+int line_width_to_semitone_logarithmic_chromatic(float line_width,unsigned int octaves); 
+int line_width_to_semitone_linear_chromatic(float line_width,unsigned int octaves); 
+unsigned int semitone_adjusted_rate(float base_rate,int semitones);
+std::tuple<float,float,float> semitone_color_chromatic(int semitone);
 
 
-extern unsigned int BASE_FREQUENCY_RATE;
+                                   
+extern std::function<int(float width)> SEMITONE_WIDTH_MAP;                                 
+extern std::function<std::tuple<float,float,float>(int semitones)> SEMITONE_COLOR_MAP;                                 
+extern const float MAX_LINE_WIDTH; 
+extern const float MIN_LINE_WIDTH; 
+extern unsigned int SAMPLE_BASE_RATE; //to be set in main
 extern const std::tuple<float,float,float> COLOR_RED;
 extern const std::tuple<float,float,float> COLOR_RED_ORANGE;
 extern const std::tuple<float,float,float> COLOR_ORANGE;

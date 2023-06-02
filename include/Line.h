@@ -15,7 +15,7 @@ class Line {
     void print();
 
     std::tuple<float,float,float> color;
-    unsigned int frequency;
+    int semitone;
 
 };
 
