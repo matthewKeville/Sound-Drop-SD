@@ -1,4 +1,4 @@
-#include "Ball.h"
+#include "Spawner.h"
 #include <glad/glad.h>
 #include <stdexcept>
 #include <cmath>
@@ -6,17 +6,14 @@
 
 //i think there is a memory leak here
 
-//the construction code for this class should be lifted to a more general namespace that can create
-//geometries. This code is for the creation of vertex data that represent ngons
-Ball::Ball(Shader* shader,int sides,float cx, float cy) {
+Spawner::Spawner(Shader* shader,Shader* ballShader,float frequency,float cx, float cy) {
   this->radius = 0.02f;
+  this->sides = 50;
   this->shader = shader;
-  this->sides = sides;
+  this->ballShader = ballShader;
+  this->frequency = frequency;
   this->cx = cx;
   this->cy = cy;
-  //this->vx = 0;
-  this->vx = 0.00001f; // line intersection needs to be fixed 
-  this->vy = 0;
 
   //TODO check if vertices are in NDC
   if ( cx < -1 || cy > 1 ) {
@@ -24,8 +21,7 @@ Ball::Ball(Shader* shader,int sides,float cx, float cy) {
   }
  
   int vertex_total = 0;
-  this->vertices = keville::util::generate_regular_polygon_vertices(this->sides,this->radius,vertex_total);
-
+  this->vertices = keville::util::generate_regular_polygon_hull_vertices(this->sides,this->radius,vertex_total);
 
   //generate buffers
   glGenVertexArrays(1, &vao);
@@ -39,11 +35,11 @@ Ball::Ball(Shader* shader,int sides,float cx, float cy) {
  
   //initialize vertex buffer
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 3 * this->sides, vertices, GL_STATIC_DRAW);//stores 2 lines
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 2 * this->sides, vertices, GL_STATIC_DRAW);
 
 }
 
-void Ball::draw() {
+void Spawner::draw() {
   shader->use();
 
   int ColorLoc = glGetUniformLocation(shader->ID, "Color"); 
@@ -51,22 +47,38 @@ void Ball::draw() {
   int WorldPositionLoc = glGetUniformLocation(shader->ID, "WorldPosition"); 
   glUniform2f(WorldPositionLoc,this->cx,this->cy);
 
+  glLineWidth(2.0f);
   glBindBuffer(GL_ARRAY_BUFFER,vbo);
   glBindVertexArray(vao); 
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 3 * 3 * this->sides, vertices);
-  glDrawArrays(GL_TRIANGLES, 0, 3*this->sides);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 3 * 2 * this->sides, vertices);
+  
+  glDrawArrays(GL_LINES, 0, 3*this->sides);
 }
 
-void Ball::print() {
-  for ( int i = 0; i < this->sides; i++) {
-    std::cout << "side= " << i << std::endl;
-    for ( int j = 0; j < 3; j++ ) {
-      int k = 9*i + (3*j);
-    }
-  }
-}
 
-void Ball::move(float x,float y) {
+void Spawner::move(float x,float y) {
   this->cx = x;
   this->cy = y;
 }
+
+
+Ball* Spawner::spawn(float currentTime) {
+  if ( currentTime > lastSpawn + (1/frequency) ) {
+    lastSpawn = currentTime;
+    return new Ball(this->ballShader,this->sides,this->cx,this->cy);
+  }
+  return nullptr;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+

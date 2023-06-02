@@ -47,6 +47,7 @@ void Line::draw() {
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 2 * 3, vertices);
   //glUniform3f(ColorLoc,1.0f,0.0f,1.0f);
   glUniform3f(ColorLoc,std::get<0>(color),std::get<1>(color),std::get<2>(color));
+  glLineWidth(6.0f);
   glDrawArrays(GL_LINES, 0, 2);
 }
 

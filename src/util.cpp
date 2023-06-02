@@ -54,6 +54,33 @@ int line_width_to_semitone_linear_chromatic(float line_width,unsigned int semito
   return semitones;
 }
 
+//semitone_radius : how many semitone in each direction
+//return a semitone distance that is within the major scale
+int line_width_to_semitone_linear_major(float line_width,unsigned int semitone_radius) {
+  int scale[7] = { 0 , 2 , 4 , 5 , 7 , 9 , 11 }; //semitones away for each note in the scale
+  int chroma_semitones = line_width_to_semitone_linear_chromatic(line_width,semitone_radius);
+  int octaves = chroma_semitones / 7;
+  int position = chroma_semitones % 7;
+  if ( chroma_semitones < 0 ) {
+    position = 7 - (-chroma_semitones % 7);
+  }
+  return octaves*12 + scale[position];
+}
+
+//semitone_radius : how many semitone in each direction
+//return a semitone distance that is within the major pentatonic scale
+int line_width_to_semitone_linear_major_pentatonic(float line_width,unsigned int semitone_radius) {
+  int scale[5] = { 0 , 2 , 4 ,  7 , 9  }; //semitones away for each note in the scale
+  int chroma_semitones = line_width_to_semitone_linear_chromatic(line_width,semitone_radius);
+  int octaves = chroma_semitones / 5;
+  int position = chroma_semitones % 5;
+  if ( chroma_semitones < 0 ) {
+    position = 5 - (-chroma_semitones % 5);
+  }
+  return octaves*12 + scale[position];
+}
+
+
 //return a rate in hz, that is 'semitones' away from base_rate
 unsigned int semitone_adjusted_rate(float base_rate,int semitones) {
   float scale_factor = pow(pow(2,1.0f/12.0f),semitones); 
@@ -66,6 +93,83 @@ std::tuple<float,float,float> semitone_color_chromatic(int semitone) {
   }
   return keville::util::COLOR_WHEEL_12[-semitone % 12];
 }
+
+
+
+//create a new array an point vertices towards it
+//return the size of the array pointed to
+float* generate_regular_polygon_vertices(unsigned int sides,float radius,int& vertex_total) {
+  float* vertices = new float[sides*3*3]{};
+  //generate vertex data
+
+  float theta = 2*M_PI / sides; //wow, i forgot about radians, sadge
+  for ( int i = 0; i < sides; i++ ) {
+
+    int j = i * 9;
+    float phi0 = i*theta;
+    float phif = (i+1)*theta;
+
+    //ball center
+
+    vertices[j]   = 0;
+    vertices[j+1] = 0;
+    vertices[j+2] = 0;  
+
+    //lower angle vertex
+    float vx0 = radius*cos(phi0);
+    float vy0 = radius*sin(phi0);
+
+    vertices[j+3]   = vx0;
+    vertices[j+4]   = vy0;
+    vertices[j+5]   = 0; 
+   
+    //upper angle vertex 
+    float vxf = radius*cos(phif);
+    float vyf = radius*sin(phif);
+
+    vertices[j+6]   = vxf;
+    vertices[j+7]   = vyf;
+    vertices[j+8]   = 0;  
+  }
+  vertex_total = 3*3*sides;
+  return vertices;
+}
+
+//no interior vertex (render as lines)
+float* generate_regular_polygon_hull_vertices(unsigned int sides,float radius,int& vertex_total) {
+  float* vertices = new float[sides*2*3]{};
+  //generate vertex data
+
+  float theta = 2*M_PI / sides; //wow, i forgot about radians, sadge
+  for ( int i = 0; i < sides; i++ ) {
+
+    int j = i * 6;
+    float phi0 = i*theta;
+    float phif = (i+1)*theta;
+
+
+    //lower angle vertex
+    float vx0 = radius*cos(phi0);
+    float vy0 = radius*sin(phi0);
+
+    vertices[j+0]   = vx0;
+    vertices[j+1]   = vy0;
+    vertices[j+2]   = 0; 
+   
+    //upper angle vertex 
+    float vxf = radius*cos(phif);
+    float vyf = radius*sin(phif);
+
+    vertices[j+3]   = vxf;
+    vertices[j+4]   = vyf;
+    vertices[j+5]   = 0;  
+
+  }
+  vertex_total = 3*2*sides;
+  return vertices;
+}
+
+
 
   unsigned int SAMPLE_BASE_RATE = 0;
   const float MAX_LINE_WIDTH = 2.0f;
@@ -94,10 +198,22 @@ std::tuple<float,float,float> semitone_color_chromatic(int semitone) {
     COLOR_VIOLET,COLOR_VIOLET_RED
   };
 
+  std::tuple<float,float,float> COLOR_WHEEL_7[7] = {
+    COLOR_RED,
+    COLOR_ORANGE,
+    COLOR_YELLOW,
+    COLOR_GREEN,
+    COLOR_BLUE,
+    COLOR_VIOLET,
+    COLOR_VIOLET_RED
+  };
+
   //defaults
   std::function<int(float)> SEMITONE_WIDTH_MAP = 
   [] (float width) {
-    return line_width_to_semitone_linear_chromatic(width,6); 
+    //return line_width_to_semitone_linear_chromatic(width,6); 
+    //return line_width_to_semitone_linear_major(width,6); 
+    return line_width_to_semitone_linear_major_pentatonic(width,8); 
   };
   //SEMITONE_WIDTH_MAP = semitone_color_chromatic;
   std::function<std::tuple<float,float,float>(int)> SEMITONE_COLOR_MAP = 

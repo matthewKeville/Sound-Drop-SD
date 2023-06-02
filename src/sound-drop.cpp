@@ -12,6 +12,7 @@
 #include "Line.h"
 #include "Ball.h"
 #include "util.h"
+#include "Spawner.h"
 #include "soloud.h"
 #include "soloud_wav.h"
 #include "soloud_thread.h"
@@ -32,6 +33,7 @@ Shader* ballShader;
 std::vector<Line*> lines;
 float preview[2*3]{};           //vertex data for preview line
 
+
 //balls
 double ballSpawnX = -0.5f;
 double ballSpawnY =  0.75f;
@@ -40,8 +42,12 @@ double ballGravity =  -0.0002f;
 double collisionRestitution = 0.95f;
 double lastSpawn;         //time of last spawn
 //double spawnRate = 1.0f;  //balls per second
-double spawnRate = 1.0f;  //balls per second
+//double spawnRate = 0.2f;  //balls per second
+double spawnRate = 1.2f;  //balls per second
 std::vector<Ball*> balls;
+
+//Demo Spawner
+Spawner* spawner;
 
 
 SoLoud::Soloud soloud;
@@ -74,18 +80,17 @@ void play_bounce_audio(Line* lp) {
   int handle = soloud.play(sample);
   int playback_rate = keville::util::semitone_adjusted_rate(keville::util::SAMPLE_BASE_RATE,lp->semitone);
   soloud.setSamplerate(handle,playback_rate);
-  std::cout << "soloud playing " << std::endl;
 }
 
 void update_balls() {
 
-  //should a ball spawn?
-  if ( glfwGetTime() > lastSpawn + (1/spawnRate) ) {
-    //std::cout << "spawn should be true" << std::endl;
-    lastSpawn = glfwGetTime();
-    if ( balls.size() != MAX_BALLS ) {
-      balls.push_back(new Ball(ballShader,100,ballSpawnX,ballSpawnY));
+  if ( balls.size() != MAX_BALLS ) {
+
+    Ball* newBall = spawner->spawn(glfwGetTime());
+    if ( newBall != nullptr ) {
+      balls.push_back(newBall);
     }
+
   }
 
   auto itty = balls.begin();
@@ -259,8 +264,8 @@ int main() {
   //general opengl settings
 
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); 
-  glLineWidth(6.0f);
-  glPointSize(10.0f);
+
+  spawner = new Spawner(ballShader,ballShader,spawnRate,ballSpawnX,ballSpawnY);
 
   
   while(!glfwWindowShouldClose(window))
@@ -301,12 +306,16 @@ int main() {
       glBindVertexArray(drawPreviewVao); 
       glBindBuffer(GL_ARRAY_BUFFER, drawPreviewVbo);
       glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(preview), preview);
-      //glUniform3f(ColorLoc,1.0f,0.0f,0.0f);
       glUniform3f(ColorLoc,std::get<0>(color),std::get<1>(color),std::get<2>(color));
+      glLineWidth(6.0f);
       glDrawArrays(GL_LINES, 0, 2);
 
     }
 
+    //draw ball spawner
+    spawner->draw();
+
+    //draw balls
     for ( auto bp : balls ) {
       bp->draw();
     }

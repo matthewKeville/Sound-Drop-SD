@@ -14,6 +14,8 @@ int line_width_to_semitone_logarithmic_chromatic(float line_width,unsigned int o
 int line_width_to_semitone_linear_chromatic(float line_width,unsigned int octaves); 
 unsigned int semitone_adjusted_rate(float base_rate,int semitones);
 std::tuple<float,float,float> semitone_color_chromatic(int semitone);
+float* generate_regular_polygon_vertices(unsigned int sides,float radius,int& vertex_total);
+float* generate_regular_polygon_hull_vertices(unsigned int sides,float radius,int& vertex_total);
 
 
                                    
