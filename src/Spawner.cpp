@@ -20,8 +20,7 @@ Spawner::Spawner(Shader* shader,Shader* ballShader,float frequency,float cx, flo
     throw std::invalid_argument(" cx & cy , must be in the range [-1,1]");
   }
  
-  int vertex_total = 0;
-  this->vertices = keville::util::generate_regular_polygon_hull_vertices(this->sides,this->radius,vertex_total);
+  int vertex_total = 0; this->vertices = keville::util::generate_regular_polygon_hull_vertices(this->sides,this->radius,vertex_total);
 
   //generate buffers
   glGenVertexArrays(1, &vao);
@@ -70,7 +69,15 @@ Ball* Spawner::spawn(float currentTime) {
   return nullptr;
 }
 
-
+bool Spawner::IsHovering(float ndcx,float ndcy) {
+  //we "move" the circle that represents a spawner to the origin
+  //and the ndc coordintes to see if they are within the circle 
+  float local_x = ndcx - this->cx;
+  float local_y = ndcy - this->cy;
+  float local_r = sqrt(pow(local_x,2) + pow(local_y,2));
+  float tolerance = 1.2f; //enlarge the detection radius slightly more than the actualy shape
+  return ( local_r < (this->radius*tolerance));
+}
 
 
 

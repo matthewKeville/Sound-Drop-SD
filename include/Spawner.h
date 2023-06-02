@@ -3,28 +3,25 @@
 
 #include "shader.h"
 #include "Ball.h"
+#include "Interactable.h"
 
-class Spawner {
+class Spawner : public Interactable {
   public:
     unsigned int vao;
     unsigned int vbo;
     float* vertices; 
-
     float cx;
     float cy;
-
     float lastTime;
     float frequency;
-
     void draw();
     Spawner(Shader*,Shader*,float,float,float);
     Shader* shader;
     Shader* ballShader;
     void move(float x, float y);
-
     Ball* spawn(float currentTime);
     double lastSpawn;
-
+    bool IsHovering(float,float);
 
   private:
     unsigned int sides;

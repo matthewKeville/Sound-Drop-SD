@@ -2,9 +2,10 @@
 #define LINE_H
 
 #include "shader.h"
+#include "Interactable.h"
 #include <tuple>
 
-class Line {
+class Line : public Interactable {
   public:
     unsigned int vao;
     unsigned int vbo;
@@ -13,9 +14,9 @@ class Line {
     Line(Shader*,float,float,float,float);
     Shader* shader;
     void print();
-
     std::tuple<float,float,float> color;
     int semitone;
+    bool IsHovering(float,float);
 
 };
 

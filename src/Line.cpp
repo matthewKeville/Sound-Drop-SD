@@ -59,3 +59,61 @@ void Line::print() {
   std::cout << msg << std::endl;
   std::cout << msg2 << std::endl;
 }
+
+bool Line::IsHovering(float ndcx,float ndcy) {
+
+    /*
+     * Translate our Line so that the leftmost coordinate coincides with the origin
+     * Perform an orthographic projection onto the line from our point.
+     * Use this to determine being bound by the ends of our segments.
+     * Use the projection distance to calculate what is considered "near"
+     */
+  
+    //separete our line into ordered components
+    float xl;
+    float yl;
+    float xr;
+    float yr;
+    
+    xl = vertices[0]; yl = vertices[1];
+    xr = vertices[3]; yr = vertices[4];
+    if (vertices[3] < vertices[0]){
+      xr = vertices[0]; yr = vertices[1];
+      xl = vertices[3]; yl = vertices[4];
+    }
+
+    //find a translation vector to make the (xl,yl) coordinate coincident with the origin
+    float tx = -xl;
+    float ty = -yl;
+
+    //translate our ndc coordinates
+    float nx = ndcx + tx;
+    float ny = ndcy + ty;
+
+    float m_line =  ( yr - yl ) / ( xr - xl );
+    float m_perp = 1.0f/(-m_line);
+    //find the y offset for the linear equation representing
+    //the line perpendicular to "this" running through point (nx,ny)
+    float y_off = ny - (nx*m_perp);
+
+    //what is the intersection of these two lines?
+    float xsol = (y_off) / ( m_line - m_perp );
+    float ysol = xsol * m_line;
+
+    float segment_length = sqrt( pow(xr-xl,2) + pow(yr-yl,2) );
+
+    //find the midpoint of the translated line
+    float mpx =  (xr - xl)/2;
+    float mpy =  (yr - yl)/2;
+
+    float mid_point_distance = sqrt(pow(mpx-xsol,2) + pow(mpy-ysol,2));
+    bool withinLineSegments = mid_point_distance < segment_length/2.0f;
+
+    float epsilon = 0.01f; //how far in perpendicular distance the point can be
+    float projection_distance = sqrt( pow(nx - xsol,2) + pow(ny - ysol,2));
+    bool withinEpsilon = projection_distance < epsilon;
+
+    return withinLineSegments && withinEpsilon;
+
+}
+

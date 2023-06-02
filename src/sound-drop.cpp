@@ -13,6 +13,7 @@
 #include "Ball.h"
 #include "util.h"
 #include "Spawner.h"
+#include "Interactable.h"
 #include "soloud.h"
 #include "soloud_wav.h"
 #include "soloud_thread.h"
@@ -49,6 +50,8 @@ std::vector<Ball*> balls;
 //Demo Spawner
 Spawner* spawner;
 
+//Interactable (the selected entity)
+Interactable* selected; //unused
 
 SoLoud::Soloud soloud;
 SoLoud::Wav sample;
@@ -80,6 +83,21 @@ void play_bounce_audio(Line* lp) {
   int handle = soloud.play(sample);
   int playback_rate = keville::util::semitone_adjusted_rate(keville::util::SAMPLE_BASE_RATE,lp->semitone);
   soloud.setSamplerate(handle,playback_rate);
+}
+
+//this should check all interactables
+//this could be a vector of Interactable* or
+//a manually collection of lists that are interactables (through cast) Line , BallSpawner
+void detect_hover() {
+  //we demo this, by checking the interaction for the one ball spawner we currently have
+  if ( spawner->IsHovering(mouseXInView(),mouseYInView()) ) {
+    std::cout << " The spawner is Hovered " << std::endl;
+  }
+  for ( auto lp : lines ) {
+    if ( lp->IsHovering(mouseXInView(),mouseYInView()) ) {
+      std::cout << " The Line is Hovered " << std::endl;
+    }
+  }
 }
 
 void update_balls() {
@@ -273,8 +291,9 @@ int main() {
     processInput(window);
     glfwPollEvents();
 
+    detect_hover();
+
     update_balls();
-    //check_intersections();
 
     //clear..
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f); 
