@@ -18,9 +18,11 @@ class Spawner : public Interactable {
     Spawner(Shader*,Shader*,float,float,float);
     Shader* shader;
     Shader* ballShader;
-    void move(float x, float y);
     Ball* spawn(float currentTime);
     double lastSpawn;
+    //Interactable
+    void move(float x, float y);
+    void position(float x,float y);
     bool IsHovering(float,float);
 
   private:

@@ -117,3 +117,19 @@ bool Line::IsHovering(float ndcx,float ndcy) {
 
 }
 
+
+void Line::move(float x,float y) {
+  vertices[0] += x;
+  vertices[1] += y;
+  vertices[3] += x;
+  vertices[4] += y;
+}
+
+void Line::position(float x,float y) {
+  float dx = vertices[3] - vertices[0];
+  float dy = vertices[4] - vertices[1];
+  vertices[0] = x;
+  vertices[1] = y;
+  vertices[3] = x + dx;
+  vertices[4] = y + dy;
+}

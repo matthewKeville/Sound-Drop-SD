@@ -21,12 +21,18 @@
 const int MAX_LINES = 50;
 const int MAX_BALLS = 30; 
 
+int windowWidth;                //glfw window dimensions
+int windowHeight;
+GLFWwindow* window;
+
+//state
+
 bool drawing = false;
+bool selected = false;
+
 double mouseX;                  //glfw window coordinates
 double mouseY;
 
-int windowWidth;                //glfw window dimensions
-int windowHeight;
 Shader* lineShader;
 Shader* ballShader;
 
@@ -34,28 +40,22 @@ Shader* ballShader;
 std::vector<Line*> lines;
 float preview[2*3]{};           //vertex data for preview line
 
-
 //balls
-double ballSpawnX = -0.5f;
-double ballSpawnY =  0.75f;
-double ballRadius =  0.05f; 
 double ballGravity =  -0.0002f;
 double collisionRestitution = 0.95f;
-double lastSpawn;         //time of last spawn
-//double spawnRate = 1.0f;  //balls per second
-//double spawnRate = 0.2f;  //balls per second
-double spawnRate = 1.2f;  //balls per second
 std::vector<Ball*> balls;
 
 //Demo Spawner
 Spawner* spawner;
 
 //Interactable (the selected entity)
-Interactable* selected; //unused
+Interactable* hovered      = nullptr;
+Interactable* interactable = nullptr; 
 
+
+//Audio
 SoLoud::Soloud soloud;
 SoLoud::Wav sample;
-
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -70,13 +70,13 @@ float toDegrees(float radians) {
 }
 
 //transform mouseX to a view plane coordinate (-1.0,1.0)
-float mouseXInView() {
-  return (2.0f  * mouseX / (float) windowWidth  ) - 1.0f;
+double mouseXToViewX(double mousex) {
+  return (2.0f  * mousex / (double) windowWidth  ) - 1.0f;
 }
 
 //transform mouseY to a view plane coordinate (-1.0,1.0)
-float mouseYInView() {
-  return (-2.0f * mouseY / (float) windowHeight ) + 1.0f;
+double mouseYToViewY(double mousey) {
+  return (-2.0f * mousey / (double) windowHeight ) + 1.0;
 }
 
 void play_bounce_audio(Line* lp) {
@@ -85,19 +85,31 @@ void play_bounce_audio(Line* lp) {
   soloud.setSamplerate(handle,playback_rate);
 }
 
-//this should check all interactables
-//this could be a vector of Interactable* or
-//a manually collection of lists that are interactables (through cast) Line , BallSpawner
-void detect_hover() {
+//return the hovered interactable if any
+Interactable* detect_hover() {
   //we demo this, by checking the interaction for the one ball spawner we currently have
-  if ( spawner->IsHovering(mouseXInView(),mouseYInView()) ) {
+  if ( spawner->IsHovering(mouseXToViewX(mouseX),mouseYToViewY(mouseY)) ) {
     std::cout << " The spawner is Hovered " << std::endl;
+    return spawner;
   }
   for ( auto lp : lines ) {
-    if ( lp->IsHovering(mouseXInView(),mouseYInView()) ) {
+    if ( lp->IsHovering(mouseXToViewX(mouseX),mouseYToViewY(mouseY)) ) {
       std::cout << " The Line is Hovered " << std::endl;
+      return lp;
     }
   }
+  return nullptr;
+}
+
+//the interactable gets moved by the user when selected
+void update_interactable() {
+  if ( !selected ) return;
+  // this should be interactable->move(dx,dy);
+  // but I was having difficulty implementing smooth movement
+  // when considered the dynamics between rendering a the glfw calculation of position and 
+  // the callbacks. This is the corect, not jank way. We set the position as a workaround.
+  interactable->position(mouseXToViewX(mouseX),mouseYToViewY(mouseY));
+
 }
 
 void update_balls() {
@@ -203,7 +215,6 @@ void update_balls() {
 
   }
 
-  //should a ball be deleted?
 }
 
 int main() {
@@ -225,7 +236,7 @@ int main() {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  GLFWwindow* window = glfwCreateWindow(800, 600, "Drop Sound", NULL, NULL);
+  window = glfwCreateWindow(800, 600, "Drop Sound", NULL, NULL);
 
   if ( window == NULL ) 
   {
@@ -283,6 +294,10 @@ int main() {
 
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); 
 
+
+  double ballSpawnX = -0.5f;
+  double ballSpawnY =  0.75f;
+  double spawnRate = 1.2f;  
   spawner = new Spawner(ballShader,ballShader,spawnRate,ballSpawnX,ballSpawnY);
 
   
@@ -291,9 +306,10 @@ int main() {
     processInput(window);
     glfwPollEvents();
 
-    detect_hover();
+    //detect_hover();
 
     update_balls();
+    update_interactable();
 
     //clear..
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f); 
@@ -356,57 +372,111 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 }
 
 void processInput(GLFWwindow* window) {
-  if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-    glfwSetWindowShouldClose(window,true);
+
+  //escape interaction with an interactable
+  if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+    selected = false;
+    interactable = nullptr;
+    std::cout << "aborting interaction" << std::endl;
+  }
+
+  //delete the focus interactable
+  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+    if (selected) {
+      std::cout << "deleting" << std::endl;
+      //what kind of interactable is it (where is it stored)
+      //this is bad and needs to be refactored
+      if ( dynamic_cast<Line*>(interactable) != nullptr ) {
+        std::cout << "this is where I would delete a line " << std::endl;
+      }
+      if ( dynamic_cast<Spawner*>(interactable) != nullptr ) {
+        std::cout << "this is where I would delete a BallSpawner " << std::endl;
+      }
+
+    }
+    selected = false;
+    interactable = nullptr;
+  }
+
+  //force quit
   if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+    glfwSetWindowShouldClose(window,true);
   } 
 
 }
 
-
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
+
+    hovered = detect_hover();
+    
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-      if (lines.size() == MAX_LINES) {
-        return;
-      }
-      if ( !drawing ) {
 
-        //map mouse coordinates to view plane
-        float xPos = mouseXInView();
-        float yPos = mouseYInView();
-
-        //write this vertex into the preview buffer
-        preview[0] = xPos;
-        preview[1] = yPos;
-        preview[2] = 0;
-
-        drawing = true;
-
-      } else { 
-
-        float xPos;
-        float yPos;
-
-        constrainedPreviewLineTerminal(xPos,yPos);
+      //Line Drawing Logic
+      ////////////////////////////////
+      if ( !selected && hovered==nullptr ) {
         
-        //create a Line instance of this line
+        if (lines.size() == MAX_LINES) {
+          return;
+        }
 
-        lines.push_back(new Line(lineShader,preview[0],preview[1],xPos,yPos));
-        drawing = false;
+        if ( !drawing ) {
 
+          //map mouse coordinates to view plane
+          float xPos = mouseXToViewX(mouseX);
+          float yPos = mouseYToViewY(mouseY);
+
+          //write this vertex into the preview buffer
+          preview[0] = xPos;
+          preview[1] = yPos;
+          preview[2] = 0;
+
+          drawing = true;
+
+        } else { 
+
+          float xPos;
+          float yPos;
+
+          constrainedPreviewLineTerminal(xPos,yPos);
+          
+          //create a Line instance of this line
+
+          lines.push_back(new Line(lineShader,preview[0],preview[1],xPos,yPos));
+          drawing = false;
+
+        }
+
+      //interactable selection 
+      ////////////////////////////////
+      } else if ( !selected && hovered!=nullptr ) {
+        selected = true;
+        interactable = hovered;
+        std::cout << "begging interaction" << std::endl;
+
+      } else if ( selected ) {
+        selected = false;
+        interactable = nullptr;
+        std::cout << "ending interaction" << std::endl;
       }
+
     }
 
     if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
-      if ( lines.size() != 0 ) {
-        std::cout << "Removing a Line" << std::endl;
-        Line* lastLine = lines[lines.size()-1];
-        delete lastLine;
-        lines.pop_back();
-      } else {
-        std::cout << "No more lines to remove" << std::endl;
+
+      //Line Deletion
+      if ( !selected ) {
+
+        if ( lines.size() != 0 ) {
+          std::cout << "Removing a Line" << std::endl;
+          Line* lastLine = lines[lines.size()-1];
+          delete lastLine;
+          lines.pop_back();
+        } else {
+          std::cout << "No more lines to remove" << std::endl;
+        }
       }
+
     }
 }
 
@@ -422,8 +492,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
  */
 void constrainedPreviewLineTerminal(float& xPos,float& yPos) {
 
-  xPos = mouseXInView();
-  yPos = mouseYInView();
+  xPos = mouseXToViewX(mouseX);
+  yPos = mouseYToViewY(mouseY);
 
   //constrain the line between our bounds
   

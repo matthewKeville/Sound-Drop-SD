@@ -55,10 +55,6 @@ void Spawner::draw() {
 }
 
 
-void Spawner::move(float x,float y) {
-  this->cx = x;
-  this->cy = y;
-}
 
 
 Ball* Spawner::spawn(float currentTime) {
@@ -77,6 +73,16 @@ bool Spawner::IsHovering(float ndcx,float ndcy) {
   float local_r = sqrt(pow(local_x,2) + pow(local_y,2));
   float tolerance = 1.2f; //enlarge the detection radius slightly more than the actualy shape
   return ( local_r < (this->radius*tolerance));
+}
+
+void Spawner::move(float x,float y) {
+  this->cx += x;
+  this->cy += y;
+}
+
+void Spawner::position(float x,float y) {
+  this->cx = x;
+  this->cy = y;
 }
 
 
