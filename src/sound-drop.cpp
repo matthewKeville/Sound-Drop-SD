@@ -29,6 +29,7 @@ GLFWwindow* window;
 
 bool lineDrawing = false;
 bool selected = false;
+bool pausePhysics = false;
 
 double mouseX;                  //glfw window coordinates
 double mouseY;
@@ -64,6 +65,7 @@ SoLoud::Wav sample;
 
 //Keys
 bool S_PRESSED = false;
+bool P_PRESSED = true;
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -312,6 +314,7 @@ int main() {
     processInput(window);
     glfwPollEvents();
 
+
     ///////////////////////////////
     //DELETE
     ///////////////////////////////
@@ -320,33 +323,37 @@ int main() {
       //an event system would be better, here we could read through the delete event buffer
       //as opposed to this poorly scaling method.
 
-    auto itty = lines.begin();
-    while (itty != lines.end()) {
-      Interactable* lp = *itty;
-      if ( lp->isDeleted() ) {
-        delete lp;
-        itty = lines.erase(itty);
-      } else {
-        itty++;
-      }
-    }
 
-    auto sitty = spawners.begin();
-    while (sitty != spawners.end()) {
-      Interactable* sp = *sitty;
-      if ( sp->isDeleted() ) {
-        delete sp;
-        sitty = spawners.erase(sitty);
-      } else {
-        sitty++;
+      auto itty = lines.begin();
+      while (itty != lines.end()) {
+        Interactable* lp = *itty;
+        if ( lp->isDeleted() ) {
+          delete lp;
+          itty = lines.erase(itty);
+        } else {
+          itty++;
+        }
       }
-    }
+
+      auto sitty = spawners.begin();
+      while (sitty != spawners.end()) {
+        Interactable* sp = *sitty;
+        if ( sp->isDeleted() ) {
+          delete sp;
+          sitty = spawners.erase(sitty);
+        } else {
+          sitty++;
+        }
+      }
+
 
     ///////////////////////////////
     //UPDATE
     ///////////////////////////////
 
-    update_balls();
+    if (!pausePhysics) {
+      update_balls();
+    }
     update_interactable();
 
     ///////////////////////////////
@@ -418,6 +425,20 @@ void drawLinePreview(){
 void processInput(GLFWwindow* window) {
 
   ///////////////////////////////
+  //PLAY/PAUSE
+  ///////////////////////////////
+  if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
+    if (!P_PRESSED) {
+      pausePhysics = !pausePhysics;
+      P_PRESSED = true;
+      std::cout << "spawn paused"  << pausePhysics <<  std::endl;
+    }
+  }
+  if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) {
+    P_PRESSED = false;
+  }
+
+  ///////////////////////////////
   //ESCAPE (ESC)
   ///////////////////////////////
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -461,6 +482,35 @@ void processInput(GLFWwindow* window) {
     S_PRESSED = false;
   }
 
+  //////////////////////////////
+  //Clear (C)
+  //////////////////////////////
+  if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
+
+    auto sitty = spawners.begin();
+    while (sitty != spawners.end()) {
+      Spawner* sp = *sitty;
+      sitty = spawners.erase(sitty);
+      delete sp;
+    }
+
+    auto bitty = balls.begin();
+    while (bitty != balls.end()) {
+      Ball* bp = *bitty;
+      bitty = balls.erase(bitty);
+      delete bp;
+    }
+
+    auto litty = lines.begin();
+    while (litty != lines.end()) {
+      Line* lp = *litty;
+      litty = lines.erase(litty);
+      delete lp;
+    }
+
+
+  } 
+
   ///////////////////////////////
   //QUIT (q)
   ///////////////////////////////
@@ -468,9 +518,6 @@ void processInput(GLFWwindow* window) {
     glfwSetWindowShouldClose(window,true);
   } 
 
-  ///////////////////////////////
-  //PLAY/PAUSE
-  ///////////////////////////////
 
 }
 
