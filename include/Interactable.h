@@ -11,8 +11,13 @@ class Interactable {
     //?delete?
     void SetInteracting(bool interacting);
     bool IsInteracting();
+
+    bool isDeleted();         //requires deletion?
+    void markDeleted();       //set requiresDeletion to true
+                             
   private :
     bool interacting = false;
+    bool deleted = false;
 };
 
 #endif

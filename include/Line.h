@@ -20,7 +20,8 @@ class Line : public Interactable {
     bool IsHovering(float,float);
     void move(float x,float y);
     void position(float x,float y);
-
+    bool isDeleted();
+    void markDeleted();
 };
 
 #endif

@@ -27,7 +27,7 @@ GLFWwindow* window;
 
 //state
 
-bool drawing = false;
+bool lineDrawing = false;
 bool selected = false;
 
 double mouseX;                  //glfw window coordinates
@@ -38,15 +38,20 @@ Shader* ballShader;
 
 //lines
 std::vector<Line*> lines;
-float preview[2*3]{};           //vertex data for preview line
+//preview vars
+float preview[2*3]{};           
+unsigned int drawPreviewVao;
+unsigned int drawPreviewVbo;
 
 //balls
 double ballGravity =  -0.0002f;
 double collisionRestitution = 0.95f;
 std::vector<Ball*> balls;
 
-//Demo Spawner
-Spawner* spawner;
+double DEFAULT_SPAWN_X = -0.5f;
+double DEFAULT_SPAWN_Y = 0.5f;
+double DEFAULT_SPAWN_F = 1.0f;
+std::vector<Spawner*> spawners;
 
 //Interactable (the selected entity)
 Interactable* hovered      = nullptr;
@@ -57,13 +62,19 @@ Interactable* interactable = nullptr;
 SoLoud::Soloud soloud;
 SoLoud::Wav sample;
 
+//Keys
+bool S_PRESSED = false;
+
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
+void drawLinePreview();
 bool testLineSegmentIntersection(float xa0,float ya0,float xaf,float yaf,float xb0,float yb0,float xbf,float ybf,float* solx, float* soly);
 void constrainedPreviewLineTerminal(float& xf,float& yf);
+
 
 float toDegrees(float radians) {
   return radians * 360.0f / (2 * M_PI);
@@ -87,14 +98,15 @@ void play_bounce_audio(Line* lp) {
 
 //return the hovered interactable if any
 Interactable* detect_hover() {
-  //we demo this, by checking the interaction for the one ball spawner we currently have
-  if ( spawner->IsHovering(mouseXToViewX(mouseX),mouseYToViewY(mouseY)) ) {
-    std::cout << " The spawner is Hovered " << std::endl;
-    return spawner;
+
+  for ( auto sp : spawners ) {
+    if ( sp->IsHovering(mouseXToViewX(mouseX),mouseYToViewY(mouseY)) ) {
+      return sp;
+    }
   }
+
   for ( auto lp : lines ) {
     if ( lp->IsHovering(mouseXToViewX(mouseX),mouseYToViewY(mouseY)) ) {
-      std::cout << " The Line is Hovered " << std::endl;
       return lp;
     }
   }
@@ -114,15 +126,18 @@ void update_interactable() {
 
 void update_balls() {
 
-  if ( balls.size() != MAX_BALLS ) {
-
-    Ball* newBall = spawner->spawn(glfwGetTime());
+  //ball spawners
+  auto sitty = spawners.begin();
+  while (sitty != spawners.end() && balls.size() != MAX_BALLS ) {
+    Spawner* sp = *sitty;
+    Ball* newBall = sp->spawn(glfwGetTime());
     if ( newBall != nullptr ) {
       balls.push_back(newBall);
     }
-
+    sitty++;
   }
 
+  //balls
   auto itty = balls.begin();
   while (itty != balls.end()) {
     Ball* bp = *itty;
@@ -228,7 +243,7 @@ int main() {
   //sample.load("res/glock_96000_1s.wav"); //44100
   //keville::util::SAMPLE_BASE_RATE = 96000;
   //sample.load("res/Highlight.wav"); // 32006;
-  //SAMPLE_BASE_RATE = 32006;
+  //keville::util::SAMPLE_BASE_RATE = 32006;
 
   //initialize glfw
 
@@ -274,47 +289,72 @@ int main() {
   preview[5] = 0.0f;
 
   //preview line
-
-  unsigned int drawPreviewVao;
-  unsigned int drawPreviewVbo;
   glGenVertexArrays(1, &drawPreviewVao);
   glGenBuffers(1,&drawPreviewVbo);
-
   glBindBuffer(GL_ARRAY_BUFFER, drawPreviewVbo);
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 * 3, preview, GL_STATIC_DRAW);//stores 2 lines
-
   glBindVertexArray(drawPreviewVao);
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);//positions
   glEnableVertexAttribArray(0); 
   glBindVertexArray(0);
 
-  //intersection buffer
-
-  //general opengl settings
-
-  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); 
-
-
-  double ballSpawnX = -0.5f;
-  double ballSpawnY =  0.75f;
-  double spawnRate = 1.2f;  
-  spawner = new Spawner(ballShader,ballShader,spawnRate,ballSpawnX,ballSpawnY);
-
+  //default spawner
+  spawners.push_back(new Spawner(ballShader,ballShader,DEFAULT_SPAWN_F,DEFAULT_SPAWN_X,DEFAULT_SPAWN_Y));
   
   while(!glfwWindowShouldClose(window))
   {
+
+    ///////////////////////////////
+    //INPUT
+    ///////////////////////////////
+    
+    hovered = detect_hover();
     processInput(window);
     glfwPollEvents();
 
-    //detect_hover();
+    ///////////////////////////////
+    //DELETE
+    ///////////////////////////////
+
+    //what needs to be deleted?
+      //an event system would be better, here we could read through the delete event buffer
+      //as opposed to this poorly scaling method.
+
+    auto itty = lines.begin();
+    while (itty != lines.end()) {
+      Interactable* lp = *itty;
+      if ( lp->isDeleted() ) {
+        delete lp;
+        itty = lines.erase(itty);
+      } else {
+        itty++;
+      }
+    }
+
+    auto sitty = spawners.begin();
+    while (sitty != spawners.end()) {
+      Interactable* sp = *sitty;
+      if ( sp->isDeleted() ) {
+        delete sp;
+        sitty = spawners.erase(sitty);
+      } else {
+        sitty++;
+      }
+    }
+
+    ///////////////////////////////
+    //UPDATE
+    ///////////////////////////////
 
     update_balls();
     update_interactable();
 
-    //clear..
+    ///////////////////////////////
+    //RENDER
+    ///////////////////////////////
+
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f); 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
-
 
     //draw lines
     for (auto lp : lines) {
@@ -322,33 +362,14 @@ int main() {
     }
 
     //draw preview
-    if (drawing) {
-
-      float xPos;
-      float yPos;
-      constrainedPreviewLineTerminal(xPos,yPos);
-
-      preview[3] = xPos;
-      preview[4] = yPos;
-      preview[5] = 0.0f;
-
-      float width = sqrt( pow(preview[4] - preview[1],2) + pow(preview[3] - preview[0],2));
-      int semitone = keville::util::SEMITONE_WIDTH_MAP(width);
-      std::tuple<float,float,float> color = keville::util::SEMITONE_COLOR_MAP(semitone);
-
-      lineShader->use();
-      int ColorLoc = glGetUniformLocation(lineShader->ID, "Color"); 
-      glBindVertexArray(drawPreviewVao); 
-      glBindBuffer(GL_ARRAY_BUFFER, drawPreviewVbo);
-      glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(preview), preview);
-      glUniform3f(ColorLoc,std::get<0>(color),std::get<1>(color),std::get<2>(color));
-      glLineWidth(6.0f);
-      glDrawArrays(GL_LINES, 0, 2);
-
+    if (lineDrawing) {
+      drawLinePreview();
     }
 
     //draw ball spawner
-    spawner->draw();
+    for ( auto sp : spawners ) {
+      sp->draw();
+    }
 
     //draw balls
     for ( auto bp : balls ) {
@@ -371,26 +392,53 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
   glfwGetWindowSize(window,&windowWidth,&windowHeight);
 }
 
+void drawLinePreview(){
+  float xPos;
+  float yPos;
+  constrainedPreviewLineTerminal(xPos,yPos);
+
+  preview[3] = xPos;
+  preview[4] = yPos;
+  preview[5] = 0.0f;
+
+  float width = sqrt( pow(preview[4] - preview[1],2) + pow(preview[3] - preview[0],2));
+  int semitone = keville::util::SEMITONE_WIDTH_MAP(width);
+  std::tuple<float,float,float> color = keville::util::SEMITONE_COLOR_MAP(semitone);
+
+  lineShader->use();
+  int ColorLoc = glGetUniformLocation(lineShader->ID, "Color"); 
+  glBindVertexArray(drawPreviewVao); 
+  glBindBuffer(GL_ARRAY_BUFFER, drawPreviewVbo);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(preview), preview);
+  glUniform3f(ColorLoc,std::get<0>(color),std::get<1>(color),std::get<2>(color));
+  glLineWidth(6.0f);
+  glDrawArrays(GL_LINES, 0, 2);
+}
+
 void processInput(GLFWwindow* window) {
 
-  //escape interaction with an interactable
+  ///////////////////////////////
+  //ESCAPE (ESC)
+  ///////////////////////////////
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
     selected = false;
     interactable = nullptr;
     std::cout << "aborting interaction" << std::endl;
   }
 
-  //delete the focus interactable
+  ///////////////////////////////
+  //DELETE (D)
+  ///////////////////////////////
   if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
     if (selected) {
       std::cout << "deleting" << std::endl;
       //what kind of interactable is it (where is it stored)
       //this is bad and needs to be refactored
       if ( dynamic_cast<Line*>(interactable) != nullptr ) {
-        std::cout << "this is where I would delete a line " << std::endl;
+        interactable->markDeleted();
       }
       if ( dynamic_cast<Spawner*>(interactable) != nullptr ) {
-        std::cout << "this is where I would delete a BallSpawner " << std::endl;
+        interactable->markDeleted();
       }
 
     }
@@ -398,20 +446,40 @@ void processInput(GLFWwindow* window) {
     interactable = nullptr;
   }
 
-  //force quit
-  if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+  ///////////////////////////////
+  //SPAWN (S)
+  ///////////////////////////////
+  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+    if (!S_PRESSED) {
+      if (!selected && hovered == nullptr) {
+        spawners.push_back(new Spawner(ballShader,ballShader,DEFAULT_SPAWN_F,mouseXToViewX(mouseX),mouseYToViewY(mouseY)));
+      }
+      S_PRESSED = true;
+    }
+  }
+  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_RELEASE) {
+    S_PRESSED = false;
+  }
+
+  ///////////////////////////////
+  //QUIT (q)
+  ///////////////////////////////
+  if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
     glfwSetWindowShouldClose(window,true);
   } 
+
+  ///////////////////////////////
+  //PLAY/PAUSE
+  ///////////////////////////////
 
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
-
-    hovered = detect_hover();
     
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
 
+      ////////////////////////////////
       //Line Drawing Logic
       ////////////////////////////////
       if ( !selected && hovered==nullptr ) {
@@ -420,7 +488,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
           return;
         }
 
-        if ( !drawing ) {
+        if ( !lineDrawing ) {
 
           //map mouse coordinates to view plane
           float xPos = mouseXToViewX(mouseX);
@@ -431,7 +499,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
           preview[1] = yPos;
           preview[2] = 0;
 
-          drawing = true;
+          lineDrawing = true;
 
         } else { 
 
@@ -443,10 +511,11 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
           //create a Line instance of this line
 
           lines.push_back(new Line(lineShader,preview[0],preview[1],xPos,yPos));
-          drawing = false;
+          lineDrawing = false;
 
         }
 
+      ////////////////////////////////
       //interactable selection 
       ////////////////////////////////
       } else if ( !selected && hovered!=nullptr ) {
@@ -462,29 +531,12 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
     }
 
-    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
-
-      //Line Deletion
-      if ( !selected ) {
-
-        if ( lines.size() != 0 ) {
-          std::cout << "Removing a Line" << std::endl;
-          Line* lastLine = lines[lines.size()-1];
-          delete lastLine;
-          lines.pop_back();
-        } else {
-          std::cout << "No more lines to remove" << std::endl;
-        }
-      }
-
-    }
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
   mouseX = xpos;
   mouseY = ypos;
 }
-
 
 /* 
  * place the final coordinate of the preview line after being subjected
@@ -516,9 +568,9 @@ void constrainedPreviewLineTerminal(float& xPos,float& yPos) {
 
 /*
  * this implementation has a flaw, when line segments are parallel to the x-axis, we get a nonzero slope, which is contradictory 
- * this is critical because when balls drop from the spawn the vector from there previous location to there future location
+ * this is critical because when a balls drop from the spawn the vector from there previous location to there future location
  * is precisely parallel to the y axis. As a bandage, ball spawn will be modified to have a tiny drift in the x direction in the absence
- * of a solution to this dillema
+ * of a solution to this dillema. TODO
  */
 bool testLineSegmentIntersection(float xa0,float ya0,float xaf,float yaf,float xb0,float yb0,float xbf,float ybf,float* solx, float* soly) {
 

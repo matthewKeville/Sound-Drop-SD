@@ -5,7 +5,6 @@
 
 //https://stackoverflow.com/questions/8971824/multiple-definition-of-namespace-variable-c-compilation
 //namespace variable rules
-//
 namespace keville::util {
 
 //map piano key numbers to frequencies (unused)
@@ -212,8 +211,8 @@ float* generate_regular_polygon_hull_vertices(unsigned int sides,float radius,in
   std::function<int(float)> SEMITONE_WIDTH_MAP = 
   [] (float width) {
     //return line_width_to_semitone_linear_chromatic(width,6); 
-    //return line_width_to_semitone_linear_major(width,6); 
-    return line_width_to_semitone_linear_major_pentatonic(width,8); 
+    return line_width_to_semitone_linear_major(width,12); 
+    //return line_width_to_semitone_linear_major_pentatonic(width,8); 
   };
   //SEMITONE_WIDTH_MAP = semitone_color_chromatic;
   std::function<std::tuple<float,float,float>(int)> SEMITONE_COLOR_MAP = 

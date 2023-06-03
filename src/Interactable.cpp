@@ -7,3 +7,11 @@ void Interactable::SetInteracting(bool interacting) {
 bool Interactable::IsInteracting() {
   return interacting;
 }
+
+bool Interactable::isDeleted() {
+  return deleted;
+}
+
+void Interactable::markDeleted() {
+  deleted = true;
+}
