@@ -30,6 +30,7 @@ GLFWwindow* window;
 bool lineDrawing = false;
 bool selected = false;
 bool pausePhysics = false;
+bool muteAudio = false;
 
 double mouseX;                  //glfw window coordinates
 double mouseY;
@@ -65,7 +66,8 @@ SoLoud::Wav sample;
 
 //Keys
 bool S_PRESSED = false;
-bool P_PRESSED = true;
+bool P_PRESSED = false;
+bool M_PRESSED = false;
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -165,10 +167,12 @@ void update_balls() {
         continue;
       }
 
-      //threads must be detached or joined before the exit of the calling scope
-      float line_width = sqrt(pow(lvert[3] - lvert[0],2) + pow(lvert[4] - lvert[1],2));
-      std::thread audio_thread(play_bounce_audio,lp);
-      audio_thread.detach();
+      if (!muteAudio) {
+        //threads must be detached or joined before the exit of the calling scope
+        float line_width = sqrt(pow(lvert[3] - lvert[0],2) + pow(lvert[4] - lvert[1],2));
+        std::thread audio_thread(play_bounce_audio,lp);
+        audio_thread.detach();
+      }
 
 
       if ( lvert[3] == lvert[0] ) {
@@ -431,7 +435,7 @@ void processInput(GLFWwindow* window) {
     if (!P_PRESSED) {
       pausePhysics = !pausePhysics;
       P_PRESSED = true;
-      std::cout << "spawn paused"  << pausePhysics <<  std::endl;
+      std::cout << "Simulation " << (pausePhysics ? " Paused " : " Resume ")  << std::endl;
     }
   }
   if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) {
@@ -444,7 +448,7 @@ void processInput(GLFWwindow* window) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
     selected = false;
     interactable = nullptr;
-    std::cout << "aborting interaction" << std::endl;
+    std::cout << "Interaction aborted" << std::endl;
   }
 
   ///////////////////////////////
@@ -452,7 +456,7 @@ void processInput(GLFWwindow* window) {
   ///////////////////////////////
   if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
     if (selected) {
-      std::cout << "deleting" << std::endl;
+      std::cout << "Deleting Interactable" << std::endl;
       //what kind of interactable is it (where is it stored)
       //this is bad and needs to be refactored
       if ( dynamic_cast<Line*>(interactable) != nullptr ) {
@@ -476,11 +480,29 @@ void processInput(GLFWwindow* window) {
         spawners.push_back(new Spawner(ballShader,ballShader,DEFAULT_SPAWN_F,mouseXToViewX(mouseX),mouseYToViewY(mouseY)));
       }
       S_PRESSED = true;
+      std::cout << "Spawning Spawner" << std::endl;
     }
   }
   if (glfwGetKey(window, GLFW_KEY_S) == GLFW_RELEASE) {
     S_PRESSED = false;
   }
+
+
+  ///////////////////////////////
+  //MUTE (M)
+  ///////////////////////////////
+  if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS) {
+    if (!M_PRESSED) {
+      muteAudio = !muteAudio;
+      M_PRESSED = true;
+      soloud.stopAll();
+      std::cout << (muteAudio ? " Muting " : " UnMuting ")  << std::endl;
+    }
+  }
+  if (glfwGetKey(window, GLFW_KEY_M) == GLFW_RELEASE) {
+    M_PRESSED = false;
+  }
+
 
   //////////////////////////////
   //Clear (C)
@@ -507,6 +529,8 @@ void processInput(GLFWwindow* window) {
       litty = lines.erase(litty);
       delete lp;
     }
+
+    std::cout << "Clearing Entities" << std::endl;
 
 
   } 
