@@ -7,7 +7,7 @@
 //i think there is a memory leak here
 
 Spawner::Spawner(Shader* shader,Shader* ballShader,float cx, float cy,float
-    baseFrequency,unsigned int scale) {
+    baseFrequency,float scale) {
   this->radius = 0.02f;
   this->sides = 50;
   this->shader = shader;
@@ -22,8 +22,6 @@ Spawner::Spawner(Shader* shader,Shader* ballShader,float cx, float cy,float
   if ( cx < -1 || cy > 1 ) {
     throw std::invalid_argument(" cx & cy , must be in the range [-1,1]");
   }
-
-  //Main Rendering Data
  
   int vertex_total = 0; this->vertices = keville::util::generate_regular_polygon_hull_vertices(this->sides,this->radius,vertex_total);
 
@@ -41,37 +39,8 @@ Spawner::Spawner(Shader* shader,Shader* ballShader,float cx, float cy,float
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 2 * this->sides, vertices, GL_STATIC_DRAW);
 
-  //Scale Indicator Rendering Data
-  this->verticesScale = new float[3*this->MAX_SCALE]{}; //we allocate enough space so if we change scale
-                                                  //we can accomodate the rendering of it's indicator
-  float phi = M_PI/8.0; 
-  float rdis = this->radius*2.0f;
-  for ( int i = 0; i < MAX_SCALE; i++ ) {
-    float theta = phi*i;
-    float px = rdis*cos(theta);
-    float py = rdis*sin(theta);
-    this->verticesScale[i*3] = px;
-    this->verticesScale[(i*3)+1] = py;
-    this->verticesScale[(i*3)+2] = 0;
-  }
-
-  //generate buffers
-  glGenVertexArrays(1, &vaoScale);
-  glGenBuffers(1,&vboScale);
-  //assemble vertex array
-  glBindBuffer(GL_ARRAY_BUFFER,vboScale);
-  glBindVertexArray(vaoScale);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-  glEnableVertexAttribArray(0); 
-  glBindVertexArray(0);
- 
-  //initialize vertex buffer
-  glBindBuffer(GL_ARRAY_BUFFER, vboScale);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * MAX_SCALE, verticesScale, GL_STATIC_DRAW);
-
 }
 
-//redundancy here for sure
 void Spawner::draw() {
   shader->use();
 
@@ -84,50 +53,36 @@ void Spawner::draw() {
   glBindBuffer(GL_ARRAY_BUFFER,vbo);
   glBindVertexArray(vao); 
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 3 * 2 * this->sides, vertices);
+  
   glDrawArrays(GL_LINES, 0, 3*this->sides);
-
-  //draw scale indicators
-  shader->use();
-  ColorLoc = glGetUniformLocation(shader->ID, "Color"); 
-  glUniform3f(ColorLoc,1.f,1.f,1.f);
-  WorldPositionLoc = glGetUniformLocation(shader->ID, "WorldPosition"); 
-  glUniform2f(WorldPositionLoc,this->cx,this->cy);
-
-  glPointSize(4.0f);
-  glBindBuffer(GL_ARRAY_BUFFER,vboScale);
-  glBindVertexArray(vaoScale); 
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 3 * this->scale , verticesScale);
-  glDrawArrays(GL_POINTS, 0, this->scale);
-
 }
 
 
 
-/*
- * This approach allows us to synchronize various spawners with little overhead
- */
+
 Ball* Spawner::spawn(float currentTime) {
 
   float wavelength = (1.f / this->baseFrequency ); //is this a safe cast?
   float quantum = wavelength/this->scale;
   float epsilon = 0.01f;  //10ms
 
-  float now = currentTime / quantum;
-  float leftQuantum = floor(now);
-  float rightQuantum = ceil(now);
+  flaot now = currentTime / quantum;
+  float leftQuantum = floor( currentTime / quantum );
+  float rightQuantum = ceil( currentTime / quantum );
 
   //are we within the left quantum and it isn't the last quantum?
-  if ( leftQuantum != lastQuantumSpawn && fabs( leftQuantum - now ) < epsilon ) {
-    lastQuantumSpawn = leftQuantum;
-    return new Ball(this->ballShader,this->sides,this->cx,this->cy);
-  }
-  if ( rightQuantum != lastQuantumSpawn && fabs( rightQuantum - now ) < epsilon ) {
-    lastQuantumSpawn = rightQuantum;
-    return new Ball(this->ballShader,this->sides,this->cx,this->cy);
-  }
+  if ( leftQuantum != lastQuantumSpawn && 
+
 
   return nullptr;
 
+  /*
+  if ( currentTime > lastSpawn + (1/frequency) ) {
+    lastSpawn = currentTime;
+    return new Ball(this->ballShader,this->sides,this->cx,this->cy);
+  }
+  return nullptr;
+  */
 }
 
 bool Spawner::IsHovering(float ndcx,float ndcy) {
@@ -150,13 +105,9 @@ void Spawner::position(float x,float y) {
   this->cy = y;
 }
 
-void Spawner::setScale(unsigned int scale) {
-  this->scale = scale;
-}
 
-unsigned int Spawner::getScale() {
-  return this->scale;
-}
+
+
 
 
 

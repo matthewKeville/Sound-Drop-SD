@@ -52,7 +52,11 @@ std::vector<Ball*> balls;
 
 double DEFAULT_SPAWN_X = -0.5f;
 double DEFAULT_SPAWN_Y = 0.5f;
-double DEFAULT_SPAWN_F = 1.0f;
+//double DEFAULT_SPAWN_F = 1.0f;
+float DEFAULT_BASE_SPAWN_FREQUENCY = (1.0f/6.0f);//0.25f;
+float DEFAULT_SPAWN_SCALE = 1.0f;
+float SPAWNER_SCALE_MAX = 5.0f;
+float SPAWNER_SCALE_MIN = 1.0f;
 std::vector<Spawner*> spawners;
 
 //Interactable (the selected entity)
@@ -68,6 +72,8 @@ SoLoud::Wav sample;
 bool S_PRESSED = false;
 bool P_PRESSED = false;
 bool M_PRESSED = false;
+bool UP_PRESSED = false;
+bool DOWN_PRESSED = false;
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -305,7 +311,13 @@ int main() {
   glBindVertexArray(0);
 
   //default spawner
-  spawners.push_back(new Spawner(ballShader,ballShader,DEFAULT_SPAWN_F,DEFAULT_SPAWN_X,DEFAULT_SPAWN_Y));
+  /*spawners.push_back(new Spawner(ballShader,ballShader,
+        DEFAULT_SPAWN_X,DEFAULT_SPAWN_Y,
+        DEFAULT_BASE_SPAWN_FREQUENCY,DEFAULT_SPAWN_SCALE));
+  */
+  spawners.push_back(new Spawner(ballShader,ballShader,
+        DEFAULT_SPAWN_X,DEFAULT_SPAWN_Y,
+        DEFAULT_BASE_SPAWN_FREQUENCY,4.0f));
   
   while(!glfwWindowShouldClose(window))
   {
@@ -472,15 +484,63 @@ void processInput(GLFWwindow* window) {
   }
 
   ///////////////////////////////
+  //Change the scale of spawner (UP)
+  ///////////////////////////////
+  if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+    if (!UP_PRESSED) {
+      //if this is a spawner adjust the scale
+      if (selected) {
+        Spawner* sp = dynamic_cast<Spawner*>(interactable);
+        if ( sp != nullptr ) {
+          unsigned int current = sp->getScale();
+          if (current != SPAWNER_SCALE_MAX) {
+            sp->setScale(current+1);
+          }     
+          UP_PRESSED = true;
+          std::cout << "increasing spawner" << std::endl;
+        }
+      }
+    }
+  }
+  if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_RELEASE) {
+    UP_PRESSED = false;
+  }
+
+  ///////////////////////////////
+  //Change the scale of spawner (DOWN)
+  ///////////////////////////////
+  if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+    if (!DOWN_PRESSED) {
+      if (selected) {
+        Spawner* sp = dynamic_cast<Spawner*>(interactable);
+        if ( sp != nullptr ) {
+          unsigned int current = sp->getScale();
+          if (current != SPAWNER_SCALE_MIN) {
+            sp->setScale(current-1);
+          }     
+          DOWN_PRESSED = true;
+          std::cout << "decreasing spawner" << std::endl;
+        }
+      }
+    }
+  }
+  if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_RELEASE) {
+    DOWN_PRESSED = false;
+  }
+
+
+
+  ///////////////////////////////
   //SPAWN (S)
   ///////////////////////////////
   if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
     if (!S_PRESSED) {
       if (!selected && hovered == nullptr) {
-        spawners.push_back(new Spawner(ballShader,ballShader,DEFAULT_SPAWN_F,mouseXToViewX(mouseX),mouseYToViewY(mouseY)));
+        spawners.push_back(new Spawner(ballShader,ballShader,mouseXToViewX(mouseX),mouseYToViewY(mouseY),
+          DEFAULT_BASE_SPAWN_FREQUENCY,DEFAULT_SPAWN_SCALE));
       }
       S_PRESSED = true;
-      std::cout << "Spawning Spawner" << std::endl;
+      std::cout << "spawning spawner" << std::endl;
     }
   }
   if (glfwGetKey(window, GLFW_KEY_S) == GLFW_RELEASE) {
