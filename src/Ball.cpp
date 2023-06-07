@@ -58,12 +58,6 @@ void Ball::draw() {
 }
 
 void Ball::print() {
-  for ( int i = 0; i < this->sides; i++) {
-    std::cout << "side= " << i << std::endl;
-    for ( int j = 0; j < 3; j++ ) {
-      int k = 9*i + (3*j);
-    }
-  }
 }
 
 void Ball::move(float x,float y) {

@@ -3,6 +3,7 @@
 
 class Interactable {
   public :
+    virtual ~Interactable(); //virtual method in base -> virtual deconstrcutor
     virtual bool IsHovering(float ndcx,float nxcy) = 0;  //normalized device coordinate pair
     //displace the interactable (it does not set it to the supplied coordinates)
     virtual void move(float x,float y) = 0;

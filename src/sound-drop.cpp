@@ -175,7 +175,6 @@ void update_balls() {
 
       if (!muteAudio) {
         //threads must be detached or joined before the exit of the calling scope
-        float line_width = sqrt(pow(lvert[3] - lvert[0],2) + pow(lvert[4] - lvert[1],2));
         std::thread audio_thread(play_bounce_audio,lp);
         audio_thread.detach();
       }
@@ -250,7 +249,9 @@ int main() {
   soloud.init();
 
   //load sound samples
-  sample.load("res/sine_440hz_44100_100ms.wav"); //44100
+  //sample.load("res/sine_440hz_44100_100ms.wav"); //44100
+  //keville::util::SAMPLE_BASE_RATE = 44100;
+  sample.load("res/marimba.wav"); //44100
   keville::util::SAMPLE_BASE_RATE = 44100;
   //sample.load("res/glock_96000_1s.wav"); //44100
   //keville::util::SAMPLE_BASE_RATE = 96000;
@@ -607,6 +608,8 @@ void processInput(GLFWwindow* window) {
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
+    (void) window;//suppress -Wunused-paramter
+    (void) mods;//suppress -Wunused-paramter
     
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
 
@@ -652,12 +655,10 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
       } else if ( !selected && hovered!=nullptr ) {
         selected = true;
         interactable = hovered;
-        std::cout << "begging interaction" << std::endl;
 
       } else if ( selected ) {
         selected = false;
         interactable = nullptr;
-        std::cout << "ending interaction" << std::endl;
       }
 
     }
@@ -665,6 +666,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+  (void) window;//suppress -Wunused-paramter
   mouseX = xpos;
   mouseY = ypos;
 }

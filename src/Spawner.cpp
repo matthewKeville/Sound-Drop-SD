@@ -46,7 +46,7 @@ Spawner::Spawner(Shader* shader,Shader* ballShader,float cx, float cy,float
                                                   //we can accomodate the rendering of it's indicator
   float phi = M_PI/8.0; 
   float rdis = this->radius*2.0f;
-  for ( int i = 0; i < MAX_SCALE; i++ ) {
+  for ( size_t i = 0; i < MAX_SCALE; i++ ) {
     float theta = phi*i;
     float px = rdis*cos(theta);
     float py = rdis*sin(theta);

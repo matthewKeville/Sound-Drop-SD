@@ -102,7 +102,7 @@ float* generate_regular_polygon_vertices(unsigned int sides,float radius,int& ve
   //generate vertex data
 
   float theta = 2*M_PI / sides; //wow, i forgot about radians, sadge
-  for ( int i = 0; i < sides; i++ ) {
+  for ( size_t i = 0; i < sides; i++ ) {
 
     int j = i * 9;
     float phi0 = i*theta;
@@ -140,7 +140,7 @@ float* generate_regular_polygon_hull_vertices(unsigned int sides,float radius,in
   //generate vertex data
 
   float theta = 2*M_PI / sides; //wow, i forgot about radians, sadge
-  for ( int i = 0; i < sides; i++ ) {
+  for ( size_t i = 0; i < sides; i++ ) {
 
     int j = i * 6;
     float phi0 = i*theta;

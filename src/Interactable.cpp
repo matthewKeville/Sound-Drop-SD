@@ -1,5 +1,9 @@
 #include "Interactable.h"
 
+Interactable::~Interactable() {
+  //no non-primitives to delete
+}
+
 void Interactable::SetInteracting(bool interacting) {
   this->interacting = interacting;
 }
