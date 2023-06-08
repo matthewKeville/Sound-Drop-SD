@@ -2,8 +2,12 @@
 #include <glad/glad.h>
 #include "util.h"
 #include <cmath>
+#include <functional>
 
-Line::Line(Shader* shader,float x0,float y0, float xf, float yf) {
+Line::Line(Shader* shader,float x0,float y0, float xf, float yf,
+    std::function<int(float width)> widthSemitoneMap,
+    std::function<std::tuple<float,float,float>(int)> semitoneColorMap) {
+
   this->shader = shader;
   //TODO check if vertices are in NDC
   //Assemble vertex data
@@ -28,14 +32,8 @@ Line::Line(Shader* shader,float x0,float y0, float xf, float yf) {
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 * 3, vertices, GL_STATIC_DRAW);//stores 2 lines
 
   //assign tone & color
-  float line_width = sqrt( pow(yf-y0,2) + pow(xf-x0,2) );
+  calculateToneAndColor(widthSemitoneMap,semitoneColorMap);
 
-  semitone = keville::util::SEMITONE_WIDTH_MAP(line_width);
-  color = keville::util::SEMITONE_COLOR_MAP(semitone);
-
-  //assign color
-  std::cout << "line semitone : " << semitone << std::endl;
-  std::cout << "line width    : " << line_width << std::endl;
 }
 
 
@@ -45,7 +43,6 @@ void Line::draw() {
   glBindBuffer(GL_ARRAY_BUFFER,vbo);
   glBindVertexArray(vao); 
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 2 * 3, vertices);
-  //glUniform3f(ColorLoc,1.0f,0.0f,1.0f);
   glUniform3f(ColorLoc,std::get<0>(color),std::get<1>(color),std::get<2>(color));
   glLineWidth(6.0f);
   glDrawArrays(GL_LINES, 0, 2);
@@ -133,3 +130,21 @@ void Line::position(float x,float y) {
   vertices[3] = x + dx;
   vertices[4] = y + dy;
 }
+
+void Line::calculateToneAndColor(
+    std::function<int(float width)> widthSemitoneMap,
+    std::function<std::tuple<float,float,float>(int)> semitoneColorMap) {
+    
+  //assign tone & color
+  float x0 = vertices[0];
+  float y0 = vertices[1];
+  float xf = vertices[3];
+  float yf = vertices[4];
+
+  float line_width = sqrt( pow(yf-y0,2) + pow(xf-x0,2) );
+  this->semitone = widthSemitoneMap(line_width);
+  this->color = semitoneColorMap(semitone);
+
+}
+
+

@@ -207,17 +207,4 @@ float* generate_regular_polygon_hull_vertices(unsigned int sides,float radius,in
     COLOR_VIOLET_RED
   };
 
-  //defaults
-  std::function<int(float)> SEMITONE_WIDTH_MAP = 
-  [] (float width) {
-    //return line_width_to_semitone_linear_chromatic(width,6); 
-    return line_width_to_semitone_linear_major(width,12); 
-    //return line_width_to_semitone_linear_major_pentatonic(width,8); 
-  };
-  //SEMITONE_WIDTH_MAP = semitone_color_chromatic;
-  std::function<std::tuple<float,float,float>(int)> SEMITONE_COLOR_MAP = 
-  [] (int semitones) {
-    return semitone_color_chromatic(semitones);
-  };
-
 }

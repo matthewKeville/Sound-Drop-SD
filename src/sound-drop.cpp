@@ -7,7 +7,8 @@
 #include <cmath>
 #include <vector>
 #include <thread>
-#include <tuple>
+#include <tuple> 
+#include <functional>
 #include "shader.cpp"
 #include "Line.h"
 #include "Ball.h"
@@ -17,6 +18,9 @@
 #include "soloud.h"
 #include "soloud_wav.h"
 #include "soloud_thread.h"
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 
 const int MAX_LINES = 50;
 const int MAX_BALLS = 30; 
@@ -66,7 +70,29 @@ Interactable* interactable = nullptr;
 
 //Audio
 SoLoud::Soloud soloud;
-SoLoud::Wav sample;
+//SoLoud::Wav sample;
+SoLoud::Wav* sample;
+
+unsigned int sampleIndex = 0;
+std::vector<std::tuple<std::string,unsigned int>> sampleData; //sampleName, sampleRate
+                                                              
+//scales
+unsigned int scaleIndex = 0;
+std::vector<
+  std::tuple<
+    std::string,
+    std::function<int(float width)>,
+    std::function<std::tuple<float,float,float>(int semitones)>
+  >
+> scaleData;
+                                                
+/*
+extern std::function<int(float width)> SEMITONE_WIDTH_MAP;                                 
+extern std::function<std::tuple<float,float,float>(int semitones)> SEMITONE_COLOR_MAP;                                 
+*/
+                                                              
+void updateSample();
+void updateScale();
 
 //Keys
 bool S_PRESSED = false;
@@ -101,7 +127,7 @@ double mouseYToViewY(double mousey) {
 }
 
 void play_bounce_audio(Line* lp) {
-  int handle = soloud.play(sample);
+  int handle = soloud.play(*sample);//edi
   int playback_rate = keville::util::semitone_adjusted_rate(keville::util::SAMPLE_BASE_RATE,lp->semitone);
   soloud.setSamplerate(handle,playback_rate);
 }
@@ -248,15 +274,48 @@ int main() {
   //initialize soloud
   soloud.init();
 
-  //load sound samples
-  //sample.load("res/sine_440hz_44100_100ms.wav"); //44100
-  //keville::util::SAMPLE_BASE_RATE = 44100;
-  sample.load("res/marimba.wav"); //44100
-  keville::util::SAMPLE_BASE_RATE = 44100;
-  //sample.load("res/glock_96000_1s.wav"); //44100
-  //keville::util::SAMPLE_BASE_RATE = 96000;
-  //sample.load("res/Highlight.wav"); // 32006;
-  //keville::util::SAMPLE_BASE_RATE = 32006;
+  // audio samples
+
+  sampleData.push_back({"res/marimba.wav",44100});
+  sampleData.push_back({"res/clipped/sine_440hz_44100_100ms.wav",44100});
+  //new (not sure if sample rates are accurate)
+  sampleData.push_back({"res/bass-d.wav",44100});
+  sampleData.push_back({"res/break-glass.wav",44100});
+  sampleData.push_back({"res/chime-a.wav",44100});
+  sampleData.push_back({"res/emu.wav",44100});
+  sampleData.push_back({"res/kalimba.wav",44100});
+  sampleData.push_back({"res/laz6.wav",44100});
+  sampleData.push_back({"res/sneeze.wav",44100});
+  sampleData.push_back({"res/toy-piano-g.wav",44100});
+  sampleData.push_back({"res/xylophone.wav",44100});
+  sampleIndex = 0;
+  updateSample();
+
+  // musical scales
+  
+  scaleData.push_back({"Major",
+      [] (float width) {
+        return keville::util::line_width_to_semitone_linear_major(width,12); 
+      },
+      [] (int semitones) {
+        return keville::util::semitone_color_chromatic(semitones);
+      }});
+  scaleData.push_back({"Major Pentatonic",
+      [] (float width) {
+        return keville::util::line_width_to_semitone_linear_major_pentatonic(width,12); 
+      },
+      [] (int semitones) {
+        return keville::util::semitone_color_chromatic(semitones);
+      }});
+  scaleData.push_back({"Chromatic",
+      [] (float width) {
+        return keville::util::line_width_to_semitone_linear_chromatic(width,12); 
+      },
+      [] (int semitones) {
+        return keville::util::semitone_color_chromatic(semitones);
+      }});
+  scaleIndex = 0;
+  updateScale();
 
   //initialize glfw
 
@@ -274,6 +333,23 @@ int main() {
   }
   glfwMakeContextCurrent(window);
 
+  //we must register these before ImGui init
+  glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+  glfwSetMouseButtonCallback(window, mouse_button_callback);
+  glfwSetCursorPosCallback(window, mouse_callback);
+
+  const char* glsl_version = "#version 330"; //IMGUI needs to know the glsl version
+  //create IMGUI context
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO& io = ImGui::GetIO(); (void)io;
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+  ImGui::StyleColorsDark();
+  //configure platform/renderer backends
+  ImGui_ImplGlfw_InitForOpenGL(window, true);
+  ImGui_ImplOpenGL3_Init(glsl_version);
+  //load fonts (will use optional)
+
   //initialize GLAD
 
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) 
@@ -284,10 +360,6 @@ int main() {
 
   glViewport(0, 0, 800, 600);
   glfwGetWindowSize(window,&windowWidth,&windowHeight);
-
-  glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-  glfwSetMouseButtonCallback(window, mouse_button_callback);
-  glfwSetCursorPosCallback(window, mouse_callback);
 
   lineShader = new Shader("shaders/line.vs","shaders/line.fs");
   ballShader = new Shader("shaders/ball.vs","shaders/line.fs");
@@ -323,12 +395,20 @@ int main() {
   while(!glfwWindowShouldClose(window))
   {
 
+
+    //start the dear ImGUI frame
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
     ///////////////////////////////
     //INPUT
     ///////////////////////////////
     
     hovered = detect_hover();
-    processInput(window);
+    if (!io.WantCaptureMouse) {
+      processInput(window);
+    }
     glfwPollEvents();
 
 
@@ -376,9 +456,10 @@ int main() {
     ///////////////////////////////
     //RENDER
     ///////////////////////////////
-
+    
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f); 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
+
 
     //draw lines
     for (auto lp : lines) {
@@ -398,6 +479,46 @@ int main() {
     //draw balls
     for ( auto bp : balls ) {
       bp->draw();
+    }
+
+
+    ImGui::SetNextWindowPos(ImVec2(windowWidth-(windowWidth/6),40.0f),ImGuiCond_FirstUseEver); //Enum FirstUseEver allows us to move this window (otherwise it's locked)
+    ImGui::SetNextWindowSize(ImVec2(400.0f,20.0f),ImGuiCond_FirstUseEver); //likewise, we can resize with the enum 
+    ImGui::Begin("Audio Sample Loader");                         
+
+    int guiSelectedSampleIndex = sampleIndex;
+    const char* sampleNames[sampleData.size()];
+    for ( size_t i = 0; i < sampleData.size(); i++ ) {
+      sampleNames[i] = std::get<0>(sampleData[i]).c_str();
+    }
+
+    if(ImGui::CollapsingHeader("Audio Sample Loader")) {
+      ImGui::ListBox("Sample", &guiSelectedSampleIndex, sampleNames , IM_ARRAYSIZE(sampleNames), 5);
+    }
+
+    int guiSelectedScaleIndex = scaleIndex;
+    const char* scaleNames[] = {"Chromatic","Major","Major Pentatonic"} ;
+
+    if(ImGui::CollapsingHeader("Scale Picker")) {
+      ImGui::ListBox("Scale", &guiSelectedScaleIndex, scaleNames , IM_ARRAYSIZE(scaleNames), 5);
+    }
+    if(ImGui::CollapsingHeader("FPS")) {
+      ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+    }
+    ImGui::End();
+
+    //Render ImGUI
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+    //process ImGui changes
+    if (guiSelectedSampleIndex != sampleIndex) {
+      sampleIndex = guiSelectedSampleIndex;
+      updateSample();
+    }
+    if (guiSelectedScaleIndex != scaleIndex) {
+      scaleIndex = guiSelectedScaleIndex;
+      updateScale();
     }
                                                                                                
     glfwSwapBuffers(window); 
@@ -426,8 +547,10 @@ void drawLinePreview(){
   preview[5] = 0.0f;
 
   float width = sqrt( pow(preview[4] - preview[1],2) + pow(preview[3] - preview[0],2));
-  int semitone = keville::util::SEMITONE_WIDTH_MAP(width);
-  std::tuple<float,float,float> color = keville::util::SEMITONE_COLOR_MAP(semitone);
+
+  auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
+  int semitone = semitoneMapper(width);
+  std::tuple<float,float,float> color = colorMapper(semitone);
 
   lineShader->use();
   int ColorLoc = glGetUniformLocation(lineShader->ID, "Color"); 
@@ -501,8 +624,7 @@ void processInput(GLFWwindow* window) {
           std::cout << "increasing spawner" << std::endl;
         }
       }
-    }
-  }
+    } }
   if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_RELEASE) {
     UP_PRESSED = false;
   }
@@ -608,6 +730,12 @@ void processInput(GLFWwindow* window) {
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
+    //if ImGui window "Wants" the mouse, we do not process below
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.WantCaptureMouse) {
+      return;
+    }
+
     (void) window;//suppress -Wunused-paramter
     (void) mods;//suppress -Wunused-paramter
     
@@ -643,8 +771,9 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
           constrainedPreviewLineTerminal(xPos,yPos);
           
           //create a Line instance of this line
-
-          lines.push_back(new Line(lineShader,preview[0],preview[1],xPos,yPos));
+            //get mapping functions for the line instance
+          auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
+          lines.push_back(new Line(lineShader,preview[0],preview[1],xPos,yPos,semitoneMapper,colorMapper));
           lineDrawing = false;
 
         }
@@ -742,5 +871,29 @@ bool testLineSegmentIntersection(float xa0,float ya0,float xaf,float yaf,float x
   return false;
 
 
+}
+
+
+void updateSample() {
+  std::string name = std::get<0>(sampleData[sampleIndex]);
+  unsigned int freq = std::get<1>(sampleData[sampleIndex]);
+  std::cout << "loaded new sample : " << name << std::endl;
+  delete sample;
+  sample = new SoLoud::Wav;
+  sample->load(name.c_str()); 
+  keville::util::SAMPLE_BASE_RATE = freq;
+  //adjust all lines so that they use the new sample's frequency
+}
+
+void updateScale() {
+  auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
+  auto lineItty = lines.begin();
+  std::cout << " scale changed, updating lines " << std::endl;
+  while (lineItty != lines.end()) {
+    Line* lp = *lineItty;
+    lp->calculateToneAndColor(semitoneMapper,colorMapper);
+    lineItty++;
+  }
+  //adjust all lines so they use the new scales color mapping
 }
 
