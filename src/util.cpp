@@ -168,9 +168,6 @@ float* generate_regular_polygon_hull_vertices(unsigned int sides,float radius,in
   return vertices;
 }
 
-
-
-  unsigned int SAMPLE_BASE_RATE = 0;
   const float MAX_LINE_WIDTH = 2.0f;
   const float MIN_LINE_WIDTH = 0.1f;
   const std::tuple<float,float,float> COLOR_RED (148.0f/255.0f,0.0f,221.0f/255.0f);

@@ -1,26 +1,29 @@
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
+//std
 #include <iostream>
 #include <cmath>
 #include <vector>
 #include <thread>
 #include <tuple> 
 #include <functional>
-#include "shader.cpp"
-#include "Line.h"
-#include "Ball.h"
-#include "util.h"
-#include "Spawner.h"
-#include "Interactable.h"
+//Third Party
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include "soloud.h"
 #include "soloud_wav.h"
 #include "soloud_thread.h"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+//keville
+#include "shader.cpp"
+#include "Line.h"
+#include "Ball.h"
+#include "util.h"
+#include "Spawner.h"
+#include "Interactable.h"
 
 const int MAX_LINES = 50;
 const int MAX_BALLS = 30; 
@@ -44,7 +47,8 @@ Shader* ballShader;
 
 //lines
 std::vector<Line*> lines;
-//preview vars
+
+//line preview var
 float preview[2*3]{};           
 unsigned int drawPreviewVao;
 unsigned int drawPreviewVbo;
@@ -56,8 +60,8 @@ std::vector<Ball*> balls;
 
 double DEFAULT_SPAWN_X = -0.5f;
 double DEFAULT_SPAWN_Y = 0.5f;
-//double DEFAULT_SPAWN_F = 1.0f;
-float DEFAULT_BASE_SPAWN_FREQUENCY = (1.0f/6.0f);//0.25f;
+
+float DEFAULT_BASE_SPAWN_FREQUENCY = (1.0f/12.0f);
 float DEFAULT_SPAWN_SCALE = 1.0f;
 float SPAWNER_SCALE_MAX = 5.0f;
 float SPAWNER_SCALE_MIN = 1.0f;
@@ -67,14 +71,12 @@ std::vector<Spawner*> spawners;
 Interactable* hovered      = nullptr;
 Interactable* interactable = nullptr; 
 
-
 //Audio
 SoLoud::Soloud soloud;
-//SoLoud::Wav sample;
 SoLoud::Wav* sample;
-
 unsigned int sampleIndex = 0;
 std::vector<std::tuple<std::string,unsigned int>> sampleData; //sampleName, sampleRate
+unsigned int SAMPLE_BASE_RATE = 0;
                                                               
 //scales
 unsigned int scaleIndex = 0;
@@ -85,189 +87,36 @@ std::vector<
     std::function<std::tuple<float,float,float>(int semitones)>
   >
 > scaleData;
-                                                
-/*
-extern std::function<int(float width)> SEMITONE_WIDTH_MAP;                                 
-extern std::function<std::tuple<float,float,float>(int semitones)> SEMITONE_COLOR_MAP;                                 
-*/
                                                               
-void updateSample();
-void updateScale();
 
-//Keys
+//Key states
 bool S_PRESSED = false;
 bool P_PRESSED = false;
 bool M_PRESSED = false;
 bool UP_PRESSED = false;
 bool DOWN_PRESSED = false;
 
-
+//glfw callbacks
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
+//application routines
+void updateSample();
+void updateScale();
+void constrainedPreviewLineTerminal(float& xf,float& yf);
 void drawLinePreview();
 bool testLineSegmentIntersection(float xa0,float ya0,float xaf,float yaf,float xb0,float yb0,float xbf,float ybf,float* solx, float* soly);
-void constrainedPreviewLineTerminal(float& xf,float& yf);
+void play_bounce_audio(Line* lp);
+Interactable* detect_hover();
+void update_interactable();
+void update_balls();
+//application utilities
+float toDegrees(float radians);
+double mouseXToViewX(double mousex);
+double mouseYToViewY(double mousey);
 
-
-float toDegrees(float radians) {
-  return radians * 360.0f / (2 * M_PI);
-}
-
-//transform mouseX to a view plane coordinate (-1.0,1.0)
-double mouseXToViewX(double mousex) {
-  return (2.0f  * mousex / (double) windowWidth  ) - 1.0f;
-}
-
-//transform mouseY to a view plane coordinate (-1.0,1.0)
-double mouseYToViewY(double mousey) {
-  return (-2.0f * mousey / (double) windowHeight ) + 1.0;
-}
-
-void play_bounce_audio(Line* lp) {
-  int handle = soloud.play(*sample);//edi
-  int playback_rate = keville::util::semitone_adjusted_rate(keville::util::SAMPLE_BASE_RATE,lp->semitone);
-  soloud.setSamplerate(handle,playback_rate);
-}
-
-//return the hovered interactable if any
-Interactable* detect_hover() {
-
-  for ( auto sp : spawners ) {
-    if ( sp->IsHovering(mouseXToViewX(mouseX),mouseYToViewY(mouseY)) ) {
-      return sp;
-    }
-  }
-
-  for ( auto lp : lines ) {
-    if ( lp->IsHovering(mouseXToViewX(mouseX),mouseYToViewY(mouseY)) ) {
-      return lp;
-    }
-  }
-  return nullptr;
-}
-
-//the interactable gets moved by the user when selected
-void update_interactable() {
-  if ( !selected ) return;
-  // this should be interactable->move(dx,dy);
-  // but I was having difficulty implementing smooth movement
-  // when considered the dynamics between rendering a the glfw calculation of position and 
-  // the callbacks. This is the corect, not jank way. We set the position as a workaround.
-  interactable->position(mouseXToViewX(mouseX),mouseYToViewY(mouseY));
-
-}
-
-void update_balls() {
-
-  //ball spawners
-  auto sitty = spawners.begin();
-  while (sitty != spawners.end() && balls.size() != MAX_BALLS ) {
-    Spawner* sp = *sitty;
-    Ball* newBall = sp->spawn(glfwGetTime());
-    if ( newBall != nullptr ) {
-      balls.push_back(newBall);
-    }
-    sitty++;
-  }
-
-  //balls
-  auto itty = balls.begin();
-  while (itty != balls.end()) {
-    Ball* bp = *itty;
-
-    float cxf = bp->cx; //end position
-    float cyf = bp->cy;
-    float vyf = bp->vy; //end velocity
-    float vxf = bp->vx; 
-
-    //free falling?
-    vyf = bp->vy += ballGravity; 
-    cxf = bp->cx + bp->vx;
-    cyf = bp->cy + bp->vy;
-
-    //collision with line?
-    for ( auto lp : lines ) {
-      float* lvert = lp->vertices;
-      float solx;
-      float soly;
-      bool intersect = testLineSegmentIntersection(lvert[0],lvert[1],lvert[3],lvert[4],bp->cx,bp->cy,cxf,cyf,&solx,&soly);
-
-      if (!intersect) {
-        continue;
-      }
-
-      if (!muteAudio) {
-        //threads must be detached or joined before the exit of the calling scope
-        std::thread audio_thread(play_bounce_audio,lp);
-        audio_thread.detach();
-      }
-
-
-      if ( lvert[3] == lvert[0] ) {
-        //we just reflect the velocity vector on the x-axis
-        vxf *= -1;
-        cxf = bp->cx + vxf;
-      } else {
-        //find the normal vectors
-        //we have two possible normals for our line segment, the right one
-        //will have an obtuse angle the velocity vector, so we check the sign
-        //of the dot product
-        float line_slope = (lvert[4] - lvert[1]) / (lvert[3] - lvert[0]);
-        float normal_slope = -(1/line_slope);
-        //now we have a "normal" vector with <1,normal_slope> but we need to find the right orientation (sign)
-        //compare sign of normal dot velocity
-        bool flipped_normal = (1.0f * vxf) + (normal_slope * vyf) > 0; // ? 
-        float normal_x = flipped_normal ? -1 : 1;
-        float normal_y = normal_slope * (flipped_normal ? -1 : 1);
-        float normal_angle = atan2(normal_y,normal_x); 
-
-        float incline_angle = normal_angle - (M_PI/2);
-
-        //find the incident angle between normal and the 'flipped' velocity vector
-        float normal_dot_velocity = vxf * normal_x + vyf * normal_y;
-        float normal_norm = sqrt(normal_x * normal_x + normal_y * normal_y);
-        float velocity_norm = sqrt(vxf * vxf + vyf * vyf);
-        float incident_angle = acos( normal_dot_velocity / ( normal_norm * velocity_norm ));
-        if ( incident_angle > M_PI/2 ) { incident_angle = M_PI - incident_angle; }
-
-        //do we add or subtract the incident angle to the normal angle?
-        float velocity_angle = atan2(vyf,vxf);
-        bool add_incidence = cos(velocity_angle - incline_angle) < 0;
-
-        //find resultant angle
-        float resultant_angle = atan2(normal_y,normal_x) + (add_incidence ? incident_angle  : -incident_angle );
-        
-        //rotate the velocity vector by this angle
-        vxf = collisionRestitution * (velocity_norm * cos(resultant_angle));
-        vyf = collisionRestitution * (velocity_norm * sin(resultant_angle) + ballGravity);
-        cxf = bp->cx + vxf;
-        cyf = bp->cy + vyf;
-
-      }
-
-    }
-
-    //set the final state of the ball
-
-    bp->vx = vxf;
-    bp->vy = vyf;
-    bp->cx = cxf;
-    bp->cy = cyf;
-
-    //should ball be deleted?
-    if (bp->cy < -1.5) {
-      delete bp;
-      itty = balls.erase(itty);
-    } else {
-      itty++;
-    }
-
-  }
-
-}
 
 int main() {
 
@@ -275,7 +124,6 @@ int main() {
   soloud.init();
 
   // audio samples
-
   sampleData.push_back({"res/marimba.wav",44100});
   sampleData.push_back({"res/clipped/sine_440hz_44100_100ms.wav",44100});
   //new (not sure if sample rates are accurate)
@@ -292,7 +140,6 @@ int main() {
   updateSample();
 
   // musical scales
-  
   scaleData.push_back({"Major",
       [] (float width) {
         return keville::util::line_width_to_semitone_linear_major(width,12); 
@@ -318,7 +165,6 @@ int main() {
   updateScale();
 
   //initialize glfw
-
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -338,19 +184,17 @@ int main() {
   glfwSetMouseButtonCallback(window, mouse_button_callback);
   glfwSetCursorPosCallback(window, mouse_callback);
 
-  const char* glsl_version = "#version 330"; //IMGUI needs to know the glsl version
   //create IMGUI context
+  const char* glsl_version = "#version 330"; //IMGUI needs to know the glsl version
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO(); (void)io;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-  ImGui::StyleColorsDark();
-  //configure platform/renderer backends
-  ImGui_ImplGlfw_InitForOpenGL(window, true);
+  ImGui_ImplGlfw_InitForOpenGL(window, true);               //configure backends
   ImGui_ImplOpenGL3_Init(glsl_version);
-  //load fonts (will use optional)
+  ImGui::StyleColorsDark();
 
-  //initialize GLAD
+  //initialize GLAD (to locate opengl call memory addresses)
 
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) 
   {
@@ -383,18 +227,12 @@ int main() {
   glEnableVertexAttribArray(0); 
   glBindVertexArray(0);
 
-  //default spawner
-  /*spawners.push_back(new Spawner(ballShader,ballShader,
-        DEFAULT_SPAWN_X,DEFAULT_SPAWN_Y,
-        DEFAULT_BASE_SPAWN_FREQUENCY,DEFAULT_SPAWN_SCALE));
-  */
   spawners.push_back(new Spawner(ballShader,ballShader,
         DEFAULT_SPAWN_X,DEFAULT_SPAWN_Y,
         DEFAULT_BASE_SPAWN_FREQUENCY,4.0f));
   
   while(!glfwWindowShouldClose(window))
   {
-
 
     //start the dear ImGUI frame
     ImGui_ImplOpenGL3_NewFrame();
@@ -410,7 +248,6 @@ int main() {
       processInput(window);
     }
     glfwPollEvents();
-
 
     ///////////////////////////////
     //DELETE
@@ -507,16 +344,23 @@ int main() {
     }
     ImGui::End();
 
+    ////////////////////
     //Render ImGUI
+    ////////////////////
+    
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-    //process ImGui changes
-    if (guiSelectedSampleIndex != sampleIndex) {
+    ////////////////////
+    //Process ImGui state
+    ////////////////////
+   
+    //If ImGui ListBox and ComboBox sets a negative index, we have a invalid index...
+    if ( guiSelectedSampleIndex >= 0 && (unsigned int) guiSelectedSampleIndex != sampleIndex) {
       sampleIndex = guiSelectedSampleIndex;
       updateSample();
     }
-    if (guiSelectedScaleIndex != scaleIndex) {
+    if (guiSelectedScaleIndex >= 0 && (unsigned int) guiSelectedScaleIndex != scaleIndex) {
       scaleIndex = guiSelectedScaleIndex;
       updateScale();
     }
@@ -537,30 +381,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
   glfwGetWindowSize(window,&windowWidth,&windowHeight);
 }
 
-void drawLinePreview(){
-  float xPos;
-  float yPos;
-  constrainedPreviewLineTerminal(xPos,yPos);
-
-  preview[3] = xPos;
-  preview[4] = yPos;
-  preview[5] = 0.0f;
-
-  float width = sqrt( pow(preview[4] - preview[1],2) + pow(preview[3] - preview[0],2));
-
-  auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
-  int semitone = semitoneMapper(width);
-  std::tuple<float,float,float> color = colorMapper(semitone);
-
-  lineShader->use();
-  int ColorLoc = glGetUniformLocation(lineShader->ID, "Color"); 
-  glBindVertexArray(drawPreviewVao); 
-  glBindBuffer(GL_ARRAY_BUFFER, drawPreviewVbo);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(preview), preview);
-  glUniform3f(ColorLoc,std::get<0>(color),std::get<1>(color),std::get<2>(color));
-  glLineWidth(6.0f);
-  glDrawArrays(GL_LINES, 0, 2);
-}
 
 void processInput(GLFWwindow* window) {
 
@@ -800,6 +620,32 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
   mouseY = ypos;
 }
 
+
+void drawLinePreview(){
+  float xPos;
+  float yPos;
+  constrainedPreviewLineTerminal(xPos,yPos);
+
+  preview[3] = xPos;
+  preview[4] = yPos;
+  preview[5] = 0.0f;
+
+  float width = sqrt( pow(preview[4] - preview[1],2) + pow(preview[3] - preview[0],2));
+
+  auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
+  int semitone = semitoneMapper(width);
+  std::tuple<float,float,float> color = colorMapper(semitone);
+
+  lineShader->use();
+  int ColorLoc = glGetUniformLocation(lineShader->ID, "Color"); 
+  glBindVertexArray(drawPreviewVao); 
+  glBindBuffer(GL_ARRAY_BUFFER, drawPreviewVbo);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(preview), preview);
+  glUniform3f(ColorLoc,std::get<0>(color),std::get<1>(color),std::get<2>(color));
+  glLineWidth(6.0f);
+  glDrawArrays(GL_LINES, 0, 2);
+}
+
 /* 
  * place the final coordinate of the preview line after being subjected
  * to the MAX and MIN constraints for lines 
@@ -873,7 +719,6 @@ bool testLineSegmentIntersection(float xa0,float ya0,float xaf,float yaf,float x
 
 }
 
-
 void updateSample() {
   std::string name = std::get<0>(sampleData[sampleIndex]);
   unsigned int freq = std::get<1>(sampleData[sampleIndex]);
@@ -881,19 +726,175 @@ void updateSample() {
   delete sample;
   sample = new SoLoud::Wav;
   sample->load(name.c_str()); 
-  keville::util::SAMPLE_BASE_RATE = freq;
   //adjust all lines so that they use the new sample's frequency
+  SAMPLE_BASE_RATE = freq;
 }
 
 void updateScale() {
   auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
   auto lineItty = lines.begin();
   std::cout << " scale changed, updating lines " << std::endl;
+  //adjust all lines so they use the new scales color mapping
   while (lineItty != lines.end()) {
     Line* lp = *lineItty;
     lp->calculateToneAndColor(semitoneMapper,colorMapper);
     lineItty++;
   }
-  //adjust all lines so they use the new scales color mapping
 }
 
+float toDegrees(float radians) {
+  return radians * 360.0f / (2 * M_PI);
+}
+
+//transform mouseX to a view plane coordinate (-1.0,1.0)
+double mouseXToViewX(double mousex) {
+  return (2.0f  * mousex / (double) windowWidth  ) - 1.0f;
+}
+
+//transform mouseY to a view plane coordinate (-1.0,1.0)
+double mouseYToViewY(double mousey) {
+  return (-2.0f * mousey / (double) windowHeight ) + 1.0;
+}
+
+void play_bounce_audio(Line* lp) {
+  int handle = soloud.play(*sample);
+  int playback_rate = keville::util::semitone_adjusted_rate(SAMPLE_BASE_RATE,lp->semitone);
+  soloud.setSamplerate(handle,playback_rate);
+}
+
+//return the hovered interactable if any
+Interactable* detect_hover() {
+
+  for ( auto sp : spawners ) {
+    if ( sp->IsHovering(mouseXToViewX(mouseX),mouseYToViewY(mouseY)) ) {
+      return sp;
+    }
+  }
+
+  for ( auto lp : lines ) {
+    if ( lp->IsHovering(mouseXToViewX(mouseX),mouseYToViewY(mouseY)) ) {
+      return lp;
+    }
+  }
+  return nullptr;
+}
+
+//the interactable gets moved by the user when selected
+void update_interactable() {
+  if ( !selected ) return;
+  // this should be interactable->move(dx,dy);
+  // but I was having difficulty implementing smooth movement
+  // when considered the dynamics between rendering a the glfw calculation of position and 
+  // the callbacks. This is the corect, not jank way. We set the position as a workaround.
+  interactable->position(mouseXToViewX(mouseX),mouseYToViewY(mouseY));
+
+}
+
+void update_balls() {
+
+  //ball spawners
+  auto sitty = spawners.begin();
+  while (sitty != spawners.end() && balls.size() != MAX_BALLS ) {
+    Spawner* sp = *sitty;
+    Ball* newBall = sp->spawn(glfwGetTime());
+    if ( newBall != nullptr ) {
+      balls.push_back(newBall);
+    }
+    sitty++;
+  }
+
+  //balls
+  auto itty = balls.begin();
+  while (itty != balls.end()) {
+    Ball* bp = *itty;
+
+    float cxf = bp->cx; //end position
+    float cyf = bp->cy;
+    float vyf = bp->vy; //end velocity
+    float vxf = bp->vx; 
+
+    //free falling?
+    vyf = bp->vy += ballGravity; 
+    cxf = bp->cx + bp->vx;
+    cyf = bp->cy + bp->vy;
+
+    //collision with line?
+    for ( auto lp : lines ) {
+      float* lvert = lp->vertices;
+      float solx;
+      float soly;
+      bool intersect = testLineSegmentIntersection(lvert[0],lvert[1],lvert[3],lvert[4],bp->cx,bp->cy,cxf,cyf,&solx,&soly);
+
+      if (!intersect) {
+        continue;
+      }
+
+      if (!muteAudio) {
+        //threads must be detached or joined before the exit of the calling scope
+        std::thread audio_thread(play_bounce_audio,lp);
+        audio_thread.detach();
+      }
+
+
+      if ( lvert[3] == lvert[0] ) {
+        //we just reflect the velocity vector on the x-axis
+        vxf *= -1;
+        cxf = bp->cx + vxf;
+      } else {
+        //find the normal vectors
+        //we have two possible normals for our line segment, the right one
+        //will have an obtuse angle the velocity vector, so we check the sign
+        //of the dot product
+        float line_slope = (lvert[4] - lvert[1]) / (lvert[3] - lvert[0]);
+        float normal_slope = -(1/line_slope);
+        //now we have a "normal" vector with <1,normal_slope> but we need to find the right orientation (sign)
+        //compare sign of normal dot velocity
+        bool flipped_normal = (1.0f * vxf) + (normal_slope * vyf) > 0; // ? 
+        float normal_x = flipped_normal ? -1 : 1;
+        float normal_y = normal_slope * (flipped_normal ? -1 : 1);
+        float normal_angle = atan2(normal_y,normal_x); 
+
+        float incline_angle = normal_angle - (M_PI/2);
+
+        //find the incident angle between normal and the 'flipped' velocity vector
+        float normal_dot_velocity = vxf * normal_x + vyf * normal_y;
+        float normal_norm = sqrt(normal_x * normal_x + normal_y * normal_y);
+        float velocity_norm = sqrt(vxf * vxf + vyf * vyf);
+        float incident_angle = acos( normal_dot_velocity / ( normal_norm * velocity_norm ));
+        if ( incident_angle > M_PI/2 ) { incident_angle = M_PI - incident_angle; }
+
+        //do we add or subtract the incident angle to the normal angle?
+        float velocity_angle = atan2(vyf,vxf);
+        bool add_incidence = cos(velocity_angle - incline_angle) < 0;
+
+        //find resultant angle
+        float resultant_angle = atan2(normal_y,normal_x) + (add_incidence ? incident_angle  : -incident_angle );
+        
+        //rotate the velocity vector by this angle
+        vxf = collisionRestitution * (velocity_norm * cos(resultant_angle));
+        vyf = collisionRestitution * (velocity_norm * sin(resultant_angle) + ballGravity);
+        cxf = bp->cx + vxf;
+        cyf = bp->cy + vyf;
+
+      }
+
+    }
+
+    //set the final state of the ball
+
+    bp->vx = vxf;
+    bp->vy = vyf;
+    bp->cx = cxf;
+    bp->cy = cyf;
+
+    //should ball be deleted?
+    if (bp->cy < -1.5) {
+      delete bp;
+      itty = balls.erase(itty);
+    } else {
+      itty++;
+    }
+
+  }
+
+}

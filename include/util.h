@@ -31,7 +31,6 @@ float* generate_regular_polygon_hull_vertices(unsigned int sides,float radius,in
 
 extern const float MAX_LINE_WIDTH; 
 extern const float MIN_LINE_WIDTH; 
-extern unsigned int SAMPLE_BASE_RATE; //to be set in main
 extern const std::tuple<float,float,float> COLOR_RED;
 extern const std::tuple<float,float,float> COLOR_RED_ORANGE;
 extern const std::tuple<float,float,float> COLOR_ORANGE;
