@@ -21,6 +21,18 @@ int line_width_to_semitone_linear_major(float line_width,unsigned int semitone_r
 //return a semitone distance that is within the major pentatonic scale
 int line_width_to_semitone_linear_major_pentatonic(float line_width,unsigned int semitone_radius);
 
+//semitone_radius : how many semitone in each direction
+//return a semitone distance that is within the minor scale
+int line_width_to_semitone_linear_minor(float line_width,unsigned int semitone_radius);
+
+//semitone_radius : how many semitone in each direction
+//return a semitone distance that is within the minor pentatonic scale
+int line_width_to_semitone_linear_minor_pentatonic(float line_width,unsigned int semitone_radius);
+
+//semitone_radius : how many semitone in each direction
+//return a semitone distance that is within the blues scale
+int line_width_to_semitone_linear_blues(float line_width,unsigned int semitone_radius);
+
 //semitone to rate maps
 unsigned int semitone_adjusted_rate(float base_rate,int semitones);
 //semitone to color maps

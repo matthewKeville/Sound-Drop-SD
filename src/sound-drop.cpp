@@ -154,6 +154,27 @@ int main() {
       [] (int semitones) {
         return keville::util::semitone_color_chromatic(semitones);
       }});
+  scaleData.push_back({"Minor",
+      [] (float width) {
+        return keville::util::line_width_to_semitone_linear_minor(width,12); 
+      },
+      [] (int semitones) {
+        return keville::util::semitone_color_chromatic(semitones);
+      }});
+  scaleData.push_back({"Minor Pentatonic",
+      [] (float width) {
+        return keville::util::line_width_to_semitone_linear_minor_pentatonic(width,12); 
+      },
+      [] (int semitones) {
+        return keville::util::semitone_color_chromatic(semitones);
+      }});
+  scaleData.push_back({"Blues",
+      [] (float width) {
+        return keville::util::line_width_to_semitone_linear_blues(width,12); 
+      },
+      [] (int semitones) {
+        return keville::util::semitone_color_chromatic(semitones);
+      }});
   scaleData.push_back({"Chromatic",
       [] (float width) {
         return keville::util::line_width_to_semitone_linear_chromatic(width,12); 
@@ -334,7 +355,10 @@ int main() {
     }
 
     int guiSelectedScaleIndex = scaleIndex;
-    const char* scaleNames[] = {"Chromatic","Major","Major Pentatonic"} ;
+    const char* scaleNames[scaleData.size()] = {} ;
+    for ( size_t i = 0; i < scaleData.size(); i++ ) {
+      scaleNames[i] = std::get<0>(scaleData[i]).c_str();
+    }
 
     if(ImGui::CollapsingHeader("Scale Picker")) {
       ImGui::ListBox("Scale", &guiSelectedScaleIndex, scaleNames , IM_ARRAYSIZE(scaleNames), 5);

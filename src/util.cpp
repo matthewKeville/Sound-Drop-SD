@@ -80,6 +80,46 @@ int line_width_to_semitone_linear_major_pentatonic(float line_width,unsigned int
 }
 
 
+//semitone_radius : how many semitone in each direction
+//return a semitone distance that is within the minor scale
+int line_width_to_semitone_linear_minor(float line_width,unsigned int semitone_radius) {
+  int scale[7] = { 0 , 2 , 3 , 5 , 7 , 8 , 10 }; //semitones away for each note in the scale
+  int chroma_semitones = line_width_to_semitone_linear_chromatic(line_width,semitone_radius);
+  int octaves = chroma_semitones / 7;
+  int position = chroma_semitones % 7;
+  if ( chroma_semitones < 0 ) {
+    position = 7 - (-chroma_semitones % 7);
+  }
+  return octaves*12 + scale[position];
+}
+
+//semitone_radius : how many semitone in each direction
+//return a semitone distance that is within the minor pentatonic scale
+int line_width_to_semitone_linear_minor_pentatonic(float line_width,unsigned int semitone_radius) {
+  int scale[5] = { 0 ,  3 , 5 , 7 , 10 }; //semitones away for each note in the scale
+  int chroma_semitones = line_width_to_semitone_linear_chromatic(line_width,semitone_radius);
+  int octaves = chroma_semitones / 5;
+  int position = chroma_semitones % 5;
+  if ( chroma_semitones < 0 ) {
+    position = 5 - (-chroma_semitones % 5);
+  }
+  return octaves*12 + scale[position];
+}
+
+//semitone_radius : how many semitone in each direction
+//return a semitone distance that is within the minor pentatonic scale
+int line_width_to_semitone_linear_blues(float line_width,unsigned int semitone_radius) {
+  int scale[6] = { 0 ,  3 , 5 , 6 , 7 , 10 }; //blues is minor penta but with maj flat 5
+  int chroma_semitones = line_width_to_semitone_linear_chromatic(line_width,semitone_radius);
+  int octaves = chroma_semitones / 6;
+  int position = chroma_semitones % 6;
+  if ( chroma_semitones < 0 ) {
+    position = 6 - (-chroma_semitones % 6);
+  }
+  return octaves*12 + scale[position];
+}
+
+
 //return a rate in hz, that is 'semitones' away from base_rate
 unsigned int semitone_adjusted_rate(float base_rate,int semitones) {
   float scale_factor = pow(pow(2,1.0f/12.0f),semitones); 
