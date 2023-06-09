@@ -14,8 +14,8 @@ Ball::Ball(Shader* shader,int sides,float cx, float cy) {
   this->sides = sides;
   this->cx = cx;
   this->cy = cy;
-  //this->vx = 0;
-  this->vx = 0.00001f; // line intersection needs to be fixed 
+  this->vx = 0;
+  //this->vx = 0.00001f; // line intersection needs to be fixed 
   this->vy = 0;
 
   //TODO check if vertices are in NDC
