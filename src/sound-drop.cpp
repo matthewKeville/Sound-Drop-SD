@@ -77,14 +77,19 @@ SoLoud::Wav* sample;
 unsigned int sampleIndex = 0;
 std::vector<std::tuple<std::string,unsigned int>> sampleData; //sampleName, sampleRate
 unsigned int SAMPLE_BASE_RATE = 0;
+
+const float GLOBAL_MAX_VOLUME = 2;
+const float GLOBAL_MIN_VOLUME = 0;
+const float GLOBAL_DEFAULT_VOLUME = 1.0f;
+const unsigned int MAX_VOICE_COUNT = 255;//1024 is standard max, but library supports 4095 with compilation flag
+                                         //yet, compiler will yell if this is above 255 ?
                                                               
 //scales
 unsigned int scaleIndex = 0;
 std::vector<
   std::tuple<
     std::string,
-    std::function<int(float width)>,
-    std::function<std::tuple<float,float,float>(int semitones)>
+    std::function<int(float width)>, std::function<std::tuple<float,float,float>(int semitones)>
   >
 > scaleData;
                                                               
@@ -122,7 +127,9 @@ int main() {
 
   //initialize soloud
   soloud.init();
-
+  soloud.setGlobalVolume(GLOBAL_DEFAULT_VOLUME);
+  soloud.setMaxActiveVoiceCount(MAX_VOICE_COUNT);
+  //soloud.setMaxActiveVoiceCount(32);
   // audio samples
   sampleData.push_back({"res/marimba.wav",44100});
   sampleData.push_back({"res/clipped/sine_440hz_44100_100ms.wav",44100});
@@ -363,9 +370,19 @@ int main() {
     if(ImGui::CollapsingHeader("Scale Picker")) {
       ImGui::ListBox("Scale", &guiSelectedScaleIndex, scaleNames , IM_ARRAYSIZE(scaleNames), 5);
     }
-    if(ImGui::CollapsingHeader("FPS")) {
-      ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+
+    float audioSlider = soloud.getGlobalVolume();
+    if(ImGui::CollapsingHeader("Volume")) {
+      ImGui::SliderFloat("Master Volume", &audioSlider, GLOBAL_MIN_VOLUME,GLOBAL_MAX_VOLUME, "%.2f", ImGuiSliderFlags_AlwaysClamp);
     }
+
+    if(ImGui::CollapsingHeader("Debug")) {
+      ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+      ImGui::Text("Active Voices : %u", soloud.getActiveVoiceCount());
+      ImGui::Text("Balls : %li", balls.size());
+    }
+
+
     ImGui::End();
 
     ////////////////////
@@ -387,6 +404,11 @@ int main() {
     if (guiSelectedScaleIndex >= 0 && (unsigned int) guiSelectedScaleIndex != scaleIndex) {
       scaleIndex = guiSelectedScaleIndex;
       updateScale();
+    }
+    if ( audioSlider != soloud.getGlobalVolume() ) {
+      audioSlider = std::max(GLOBAL_MIN_VOLUME,audioSlider);
+      audioSlider = std::min(GLOBAL_MAX_VOLUME,audioSlider);
+      soloud.setGlobalVolume(audioSlider);
     }
                                                                                                
     glfwSwapBuffers(window); 
