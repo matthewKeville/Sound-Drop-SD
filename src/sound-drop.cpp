@@ -61,7 +61,7 @@ std::vector<Ball*> balls;
 double DEFAULT_SPAWN_X = -0.5f;
 double DEFAULT_SPAWN_Y = 0.5f;
 
-float DEFAULT_BASE_SPAWN_FREQUENCY = (1.0f/12.0f);
+float DEFAULT_BASE_SPAWN_FREQUENCY = (1.0f/3.0f);
 float DEFAULT_SPAWN_SCALE = 1.0f;
 float SPAWNER_SCALE_MAX = 5.0f;
 float SPAWNER_SCALE_MIN = 1.0f;
@@ -742,6 +742,7 @@ bool testLineSegmentIntersection(float xa0,float ya0,float xaf,float yaf,float x
     } 
 
     float solvex;
+    float solvey;
 
     if ( bIsVertical ) {
       solvex = xb0;
@@ -751,6 +752,7 @@ bool testLineSegmentIntersection(float xa0,float ya0,float xaf,float yaf,float x
       solvex = ( (ma * xa0) - (mb * xb0) + yb0 - ya0 );
       solvex/=(ma-mb);
     }
+    solvey = ma * (solvex - xa0) + ya0;
 
     //now we check if solx is in the intersection of our segments x domains
     float axmin = std::min(xa0,xaf);
@@ -758,15 +760,27 @@ bool testLineSegmentIntersection(float xa0,float ya0,float xaf,float yaf,float x
     float bxmin = std::min(xb0,xbf);
     float bxmax = std::max(xb0,xbf);
 
-    if ( solvex >= axmin && solvex <= axmax 
-          && solvex >= bxmin && solvex <= bxmax ) {
-      *solx = solvex;
-      *soly = ma * (solvex - xa0) + ya0;
-      return true;
+    bool xOk = solvex >= axmin && solvex <= axmax 
+      && solvex >= bxmin && solvex <= bxmax;
+
+    if (xOk) {
+
+      //same for y domains
+      float aymin = std::min(ya0,yaf);
+      float aymax = std::max(ya0,yaf);
+      float bymin = std::min(yb0,ybf);
+      float bymax = std::max(yb0,ybf);
+
+      bool yOk =  solvey >= aymin && solvey <= aymax 
+            && solvey >= bymin && solvey <= bymax;
+
+      if ( yOk ) {
+        *solx = solvex;
+        *soly = solvey;
+        return true;
+      }
+
     }
-    solx = 0;
-    soly = 0;
-    return false;
   }
   *solx = 0;
   *soly = 0;
@@ -970,18 +984,23 @@ void update_balls() {
         audio_thread.detach();
       }
 
-
+      //vertical line case (causes indeterminate line_slope)
       if ( lvert[3] == lvert[0] ) {
         //we just reflect the velocity vector on the x-axis
-        vxf *= -1;
+        vxf *= -1 * collisionRestitution;
         cxf = bp->cx + vxf;
+      //horizontal line case (causes line_slope to be 0)
+      } else if (lvert[4] == lvert[1])  {
+        //we just reflect the velocity vector on the y-axis
+        vyf *= -1 * collisionRestitution;
+        cyf = bp->cy + vyf;
       } else {
         //find the normal vectors
         //we have two possible normals for our line segment, the right one
         //will have an obtuse angle the velocity vector, so we check the sign
         //of the dot product
         float line_slope = (lvert[4] - lvert[1]) / (lvert[3] - lvert[0]);
-        float normal_slope = -(1/line_slope);
+        float normal_slope = -(1/line_slope); //yikes, this won't work when the line is perpendicular
         //now we have a "normal" vector with <1,normal_slope> but we need to find the right orientation (sign)
         //compare sign of normal dot velocity
         bool flipped_normal = (1.0f * vxf) + (normal_slope * vyf) > 0; // ? 
