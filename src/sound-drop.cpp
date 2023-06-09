@@ -24,6 +24,7 @@
 #include "util.h"
 #include "Spawner.h"
 #include "Interactable.h"
+#include "SaveState.h"
 
 const int MAX_LINES = 50;
 const int MAX_BALLS = 30; 
@@ -92,6 +93,12 @@ std::vector<
     std::function<int(float width)>, std::function<std::tuple<float,float,float>(int semitones)>
   >
 > scaleData;
+
+const unsigned int NUM_SAVE_SLOTS = 3;
+
+//save slots
+int selectedSaveSlot = 0;
+SaveState saveSlots[NUM_SAVE_SLOTS];
                                                               
 
 //Key states
@@ -376,11 +383,31 @@ int main() {
       ImGui::SliderFloat("Master Volume", &audioSlider, GLOBAL_MIN_VOLUME,GLOBAL_MAX_VOLUME, "%.2f", ImGuiSliderFlags_AlwaysClamp);
     }
 
+    int newSaveSlot = selectedSaveSlot;
+    bool saveClicked = false;
+    bool loadClicked = false;
+    if(ImGui::CollapsingHeader("Save/Load")) {
+      for ( int n = 0; n < NUM_SAVE_SLOTS; n++ ) {
+        char buf[32];
+        sprintf(buf,"State %d",n);
+        if ( ImGui::Selectable(buf, newSaveSlot == n ))
+          selectedSaveSlot = n;
+      }
+      ImGui::SeparatorText("");
+      if(ImGui::Button("Save")) {
+        saveClicked = true;
+      }
+      ImGui::SameLine();
+      if(ImGui::Button("Load")) {
+        loadClicked = true;
+      }
+    }
+
     if(ImGui::CollapsingHeader("Debug")) {
       ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
       ImGui::Text("Active Voices : %u", soloud.getActiveVoiceCount());
       ImGui::Text("Balls : %li", balls.size());
-    }
+   }
 
 
     ImGui::End();
@@ -410,6 +437,19 @@ int main() {
       audioSlider = std::min(GLOBAL_MAX_VOLUME,audioSlider);
       soloud.setGlobalVolume(audioSlider);
     }
+
+    if ( saveClicked ) {
+      //save to selectd slot
+      std::cout << " saving to slot " << selectedSaveSlot << std::endl;
+      saveSlots[selectedSaveSlot].save(lines,spawners);
+    }
+
+    if ( loadClicked ) {
+      //load to selectd slot
+      std::cout << " loading slot " << selectedSaveSlot << std::endl;
+      saveSlots[selectedSaveSlot].load(lines,spawners);
+    }
+
                                                                                                
     glfwSwapBuffers(window); 
   }
