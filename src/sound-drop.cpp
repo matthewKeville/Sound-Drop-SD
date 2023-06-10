@@ -27,7 +27,7 @@
 #include "SaveState.h"
 
 const int MAX_LINES = 50;
-const int MAX_BALLS = 30; 
+const int MAX_BALLS = 300; 
 
 int windowWidth;                //glfw window dimensions
 int windowHeight;
@@ -1030,65 +1030,59 @@ void update_balls() {
 
     //collision with line?
     for ( auto lp : lines ) {
-      float* lvert = lp->vertices;
+      auto [ pointA , pointB ] = lp->getPosition();
       float solx;
       float soly;
-      bool intersect = testLineSegmentIntersection(lvert[0],lvert[1],lvert[3],lvert[4],bp->center.x,bp->center.y,centerFinal.x,centerFinal.y,&solx,&soly);
+      bool intersect = testLineSegmentIntersection(pointA.x,pointA.y,pointB.x,pointB.y,bp->center.x,bp->center.y,centerFinal.x,centerFinal.y,&solx,&soly);
 
       if (!intersect) {
         continue;
       }
 
       if (!muteAudio) {
-        //threads must be detached or joined before the exit of the calling scope
+        //  threads must be detached or joined before the exit of the calling scope
         std::thread audio_thread(play_bounce_audio,lp);
         audio_thread.detach();
       }
 
-      //vertical line case (causes indeterminate line_slope)
-      if ( lvert[3] == lvert[0] ) {
-        //we just reflect the velocity vector on the x-axis
+      //  vertical line case (causes indeterminate line_slope)
+      if ( pointB.x == pointA.x ) {
+        //  we reflect the velocity vector on the x-axis
         velocityFinal.x *= -1 * collisionRestitution;
         centerFinal.x = bp->center.x + velocityFinal.x;
-      //horizontal line case (causes line_slope to be 0)
-      } else if (lvert[4] == lvert[1])  {
-        //we reflect the velocity vector on the y-axis
+      //  horizontal line case (causes line_slope to be 0)
+      } else if (pointB.y == pointA.y)  {
+        //  we reflect the velocity vector on the y-axis
         velocityFinal.y *= -1 * collisionRestitution;
         centerFinal.y = bp->center.y + velocityFinal.y;
       } else {
-        //find the normal vectors
-        //we have two possible normals for our line segment, the right one
-        //will have an obtuse angle the velocity vector, so we check the sign
-        //of the dot product
-        float line_slope = (lvert[4] - lvert[1]) / (lvert[3] - lvert[0]);
+        //  find the normal vectors
+          //  we have two possible normals for our line segment, the right one
+          //  will have an obtuse angle the velocity vector, so we check the sign
+          //  of the dot product
+        float line_slope = (pointB.y - pointA.y) / (pointB.x - pointA.x);
         float normal_slope = -(1/line_slope); //yikes, this won't work when the line is perpendicular
-        //now we have a "normal" vector with <1,normal_slope> but we need to find the right orientation (sign)
-        //compare sign of normal dot velocity
+        //  now we have a "normal" vector with <1,normal_slope> but we need to find the right orientation (sign)
+        //  compare sign of normal dot velocity
         bool flipped_normal = (1.0f * velocityFinal.x) + (normal_slope * velocityFinal.y) > 0; // ? 
         float normal_x = flipped_normal ? -1 : 1;
         float normal_y = normal_slope * (flipped_normal ? -1 : 1);
         float normal_angle = atan2(normal_y,normal_x); 
         float incline_angle = normal_angle - (M_PI/2);
-        //find the incident angle between normal and the 'flipped' velocity vector
-        //float normal_dot_velocity = vxf * normal_x + velocityFinal.y * normal_y;
+        //  find the incident angle between normal and the 'flipped' velocity vector
         float normal_dot_velocity = velocityFinal.x * normal_x + velocityFinal.y * normal_y;
         float normal_norm = sqrt(normal_x * normal_x + normal_y * normal_y);
-        //float velocity_norm = sqrt(vxf * vxf + velocityFinal.y * velocityFinal.y);
         float velocity_norm = sqrt(velocityFinal.x * velocityFinal.x + velocityFinal.y * velocityFinal.y);
         float incident_angle = acos( normal_dot_velocity / ( normal_norm * velocity_norm ));
         if ( incident_angle > M_PI/2 ) { incident_angle = M_PI - incident_angle; }
-        //do we add or subtract the incident angle to the normal angle?
-        //float velocity_angle = atan2(velocityFinal.y,vxf);
+        //  do we add or subtract the incident angle to the normal angle?
         float velocity_angle = atan2(velocityFinal.y,velocityFinal.x);
         bool add_incidence = cos(velocity_angle - incline_angle) < 0;
-
-        //find resultant angle
+        //  find resultant angle
         float resultant_angle = atan2(normal_y,normal_x) + (add_incidence ? incident_angle  : -incident_angle );
-        
-        //rotate the velocity vector by this angle (this can be rewritten for vectors)
+        //  rotate the velocity vector by this angle (this can be rewritten for vectors)
         velocityFinal.x = collisionRestitution * (velocity_norm * cos(resultant_angle));
         velocityFinal.y = collisionRestitution * (velocity_norm * sin(resultant_angle) + ballGravity);
-
         centerFinal = bp->center + velocityFinal;
       }
 

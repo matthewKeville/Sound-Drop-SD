@@ -5,26 +5,29 @@
 #include "Interactable.h"
 #include <tuple>
 #include <functional>
+#include <glm/glm.hpp>
 
 class Line : public Interactable {
   public:
-    unsigned int vao;
-    unsigned int vbo;
-    float* vertices; 
-    void draw();
-    Line(Shader*,float,float,float,float,std::function<int(float width)>,std::function<std::tuple<float,float,float>(int semitones)> );
-    Shader* shader;
-    void print();
-    std::tuple<float,float,float> color;
     int semitone;
+    std::tuple<float,float,float> color;
+    Line(Shader*,float,float,float,float,std::function<int(float width)>,std::function<std::tuple<float,float,float>(int semitones)> );
+    void draw();
+    void print();
     void calculateToneAndColor(std::function<int(float)>,
         std::function<std::tuple<float,float,float>(int)>);
+    std::tuple<glm::vec2,glm::vec2> getPosition();
     //Interactable
-    bool IsHovering(float,float);
     void move(float x,float y);
+    bool IsHovering(float,float);
     void position(float x,float y);
     bool isDeleted();
     void markDeleted();
+  private :
+    Shader* shader;
+    unsigned int vao;
+    unsigned int vbo;
+    float* vertices; 
 };
 
 #endif

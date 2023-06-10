@@ -9,15 +9,15 @@ Line::Line(Shader* shader,float x0,float y0, float xf, float yf,
     std::function<std::tuple<float,float,float>(int)> semitoneColorMap) {
 
   this->shader = shader;
-  //TODO check if vertices are in NDC
-  //Assemble vertex data
-  vertices = new float[6];
-  vertices[0] = x0;
-  vertices[1] = y0;
-  vertices[2] = 0.0f;
-  vertices[3] = xf;
-  vertices[4] = yf;
-  vertices[5] = 0.0f;
+  this->vertices = new float[6];
+  this->vertices[0] = x0;
+  this->vertices[1] = y0;
+  this->vertices[2] = 0.0f;
+  this->vertices[3] = xf;
+  this->vertices[4] = yf;
+  this->vertices[5] = 0.0f;
+
+
   //generate buffers
   glGenVertexArrays(1, &vao);
   glGenBuffers(1,&vbo);
@@ -71,7 +71,7 @@ bool Line::IsHovering(float ndcx,float ndcy) {
     float yl;
     float xr;
     float yr;
-    
+  
     xl = vertices[0]; yl = vertices[1];
     xr = vertices[3]; yr = vertices[4];
     if (vertices[3] < vertices[0]){
@@ -129,6 +129,13 @@ void Line::position(float x,float y) {
   vertices[1] = y;
   vertices[3] = x + dx;
   vertices[4] = y + dy;
+}
+
+std::tuple<glm::vec2,glm::vec2> Line::getPosition() {
+  return { 
+    glm::vec2(vertices[0],vertices[1]) , 
+    glm::vec2(vertices[3],vertices[4]) 
+  };
 }
 
 void Line::calculateToneAndColor(
