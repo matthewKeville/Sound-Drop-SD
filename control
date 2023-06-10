@@ -1,0 +1,5 @@
+Package: SoundDropSD
+Version: 0.1
+Architecture: amd64
+Maintainer: matthew keville <matthewkeville@protonmail.com>
+Description: A Physics Based Beat Maker

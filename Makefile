@@ -14,5 +14,6 @@ build/ :
 	mkdir build
 clean : 
 	rm -rf build
+	rm -rf release
 run : build/sound-drop.exe
 	./build/sound-drop.exe
