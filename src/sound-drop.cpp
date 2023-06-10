@@ -1019,22 +1019,21 @@ void update_balls() {
   while (itty != balls.end()) {
     Ball* bp = *itty;
 
-    float cxf = bp->cx; //end position
-    float cyf = bp->cy;
-    float vyf = bp->vy; //end velocity
-    float vxf = bp->vx; 
+    glm::vec2 centerFinal = bp->center;
+    glm::vec2 velocityFinal = bp->velocity;
 
     //free falling?
-    vyf = bp->vy += ballGravity; 
-    cxf = bp->cx + bp->vx;
-    cyf = bp->cy + bp->vy;
+    velocityFinal.y += ballGravity;
+
+    centerFinal.x = bp->center.x + bp->velocity.x;
+    centerFinal.y = bp->center.y + bp->velocity.y;
 
     //collision with line?
     for ( auto lp : lines ) {
       float* lvert = lp->vertices;
       float solx;
       float soly;
-      bool intersect = testLineSegmentIntersection(lvert[0],lvert[1],lvert[3],lvert[4],bp->cx,bp->cy,cxf,cyf,&solx,&soly);
+      bool intersect = testLineSegmentIntersection(lvert[0],lvert[1],lvert[3],lvert[4],bp->center.x,bp->center.y,centerFinal.x,centerFinal.y,&solx,&soly);
 
       if (!intersect) {
         continue;
@@ -1049,13 +1048,13 @@ void update_balls() {
       //vertical line case (causes indeterminate line_slope)
       if ( lvert[3] == lvert[0] ) {
         //we just reflect the velocity vector on the x-axis
-        vxf *= -1 * collisionRestitution;
-        cxf = bp->cx + vxf;
+        velocityFinal.x *= -1 * collisionRestitution;
+        centerFinal.x = bp->center.x + velocityFinal.x;
       //horizontal line case (causes line_slope to be 0)
       } else if (lvert[4] == lvert[1])  {
-        //we just reflect the velocity vector on the y-axis
-        vyf *= -1 * collisionRestitution;
-        cyf = bp->cy + vyf;
+        //we reflect the velocity vector on the y-axis
+        velocityFinal.y *= -1 * collisionRestitution;
+        centerFinal.y = bp->center.y + velocityFinal.y;
       } else {
         //find the normal vectors
         //we have two possible normals for our line segment, the right one
@@ -1065,48 +1064,45 @@ void update_balls() {
         float normal_slope = -(1/line_slope); //yikes, this won't work when the line is perpendicular
         //now we have a "normal" vector with <1,normal_slope> but we need to find the right orientation (sign)
         //compare sign of normal dot velocity
-        bool flipped_normal = (1.0f * vxf) + (normal_slope * vyf) > 0; // ? 
+        bool flipped_normal = (1.0f * velocityFinal.x) + (normal_slope * velocityFinal.y) > 0; // ? 
         float normal_x = flipped_normal ? -1 : 1;
         float normal_y = normal_slope * (flipped_normal ? -1 : 1);
         float normal_angle = atan2(normal_y,normal_x); 
-
         float incline_angle = normal_angle - (M_PI/2);
-
         //find the incident angle between normal and the 'flipped' velocity vector
-        float normal_dot_velocity = vxf * normal_x + vyf * normal_y;
+        //float normal_dot_velocity = vxf * normal_x + velocityFinal.y * normal_y;
+        float normal_dot_velocity = velocityFinal.x * normal_x + velocityFinal.y * normal_y;
         float normal_norm = sqrt(normal_x * normal_x + normal_y * normal_y);
-        float velocity_norm = sqrt(vxf * vxf + vyf * vyf);
+        //float velocity_norm = sqrt(vxf * vxf + velocityFinal.y * velocityFinal.y);
+        float velocity_norm = sqrt(velocityFinal.x * velocityFinal.x + velocityFinal.y * velocityFinal.y);
         float incident_angle = acos( normal_dot_velocity / ( normal_norm * velocity_norm ));
         if ( incident_angle > M_PI/2 ) { incident_angle = M_PI - incident_angle; }
-
         //do we add or subtract the incident angle to the normal angle?
-        float velocity_angle = atan2(vyf,vxf);
+        //float velocity_angle = atan2(velocityFinal.y,vxf);
+        float velocity_angle = atan2(velocityFinal.y,velocityFinal.x);
         bool add_incidence = cos(velocity_angle - incline_angle) < 0;
 
         //find resultant angle
         float resultant_angle = atan2(normal_y,normal_x) + (add_incidence ? incident_angle  : -incident_angle );
         
-        //rotate the velocity vector by this angle
-        vxf = collisionRestitution * (velocity_norm * cos(resultant_angle));
-        vyf = collisionRestitution * (velocity_norm * sin(resultant_angle) + ballGravity);
-        cxf = bp->cx + vxf;
-        cyf = bp->cy + vyf;
+        //rotate the velocity vector by this angle (this can be rewritten for vectors)
+        velocityFinal.x = collisionRestitution * (velocity_norm * cos(resultant_angle));
+        velocityFinal.y = collisionRestitution * (velocity_norm * sin(resultant_angle) + ballGravity);
 
+        centerFinal = bp->center + velocityFinal;
       }
 
     }
 
     //set the final state of the ball
+    bp->velocity = velocityFinal;
+    bp->center   = centerFinal;
 
-    bp->vx = vxf;
-    bp->vy = vyf;
-    bp->cx = cxf;
-    bp->cy = cyf;
-
-    //should ball be deleted?
-    if (bp->cy < -1.5) {
+    //if ball is outside a circle of radius 5 , delete
+    if (sqrt(glm::dot(bp->center,bp->center)) > 5.0) { 
       delete bp;
       itty = balls.erase(itty);
+      std::cout << "deleting" << std::endl;
     } else {
       itty++;
     }
