@@ -5,38 +5,43 @@
 #include "Ball.h"
 #include "Interactable.h"
 
+#include <glm/glm.hpp>
+
 class Spawner : public Interactable {
   public:
-    unsigned int vao;
-    unsigned int vbo;
-    float* vertices; 
-    unsigned int vaoScale;
-    unsigned int vboScale;
-    float* verticesScale; 
-    float cx;
-    float cy;
-    float lastTime;
     void draw();
     Spawner(Shader*,Shader*,float,float,float,unsigned int);
-    Shader* shader;
-    Shader* ballShader;
-    /* currentTime : time in seconds since application start */
-    Ball* spawn(float currentTime);
-    double lastSpawn;
+    Ball* spawn(float currentTime/*in s from app start */);
     //Interactable
     void move(float x, float y);
     void position(float x,float y);
     bool IsHovering(float,float);
     void setScale(unsigned int);
     unsigned int getScale();
-
   private:
+    //opengl buffers main circle
+    unsigned int vao;
+    unsigned int vbo;
+    float* vertices; 
+    //opengl buffers scale circle
+    unsigned int vaoScale;
+    unsigned int vboScale;
+    float* verticesScale; 
+    
+    Shader* shader;
+    Shader* ballShader;
+
+    //geometric properties
     unsigned int sides;
     float radius;
+    glm::vec2 center;
+    //spawner characteristics
     float baseFrequency; //spawn frequency in Hz
     unsigned int scale;
     unsigned int lastQuantumSpawn;
     const unsigned int MAX_SCALE = 10;
+    float lastTime;
+    double lastSpawn;
 };
 
 #endif

@@ -8,24 +8,22 @@
 
 Spawner::Spawner(Shader* shader,Shader* ballShader,float cx, float cy,float
     baseFrequency,unsigned int scale) {
+
+  this->ballShader = ballShader;
+  this->shader = shader;
+
   this->radius = 0.02f;
   this->sides = 50;
-  this->shader = shader;
-  this->ballShader = ballShader;
-  this->cx = cx;
-  this->cy = cy;
+  this->center = glm::vec2(cx,cy);
+
   this->baseFrequency = baseFrequency;
   this->scale = scale;
   this->lastQuantumSpawn = 0;
 
-  //TODO check if vertices are in NDC
-  if ( cx < -1 || cy > 1 ) {
-    throw std::invalid_argument(" cx & cy , must be in the range [-1,1]");
-  }
 
   //Main Rendering Data
- 
-  int vertex_total = 0; this->vertices = keville::util::generate_regular_polygon_hull_vertices(this->sides,this->radius,vertex_total);
+  int vertex_total = 0; 
+  this->vertices = keville::util::generate_regular_polygon_hull_vertices(this->sides,this->radius,vertex_total);
 
   //generate buffers
   glGenVertexArrays(1, &vao);
@@ -78,7 +76,7 @@ void Spawner::draw() {
   int ColorLoc = glGetUniformLocation(shader->ID, "Color"); 
   glUniform3f(ColorLoc,1.f,1.f,1.f);
   int WorldPositionLoc = glGetUniformLocation(shader->ID, "WorldPosition"); 
-  glUniform2f(WorldPositionLoc,this->cx,this->cy);
+  glUniform2f(WorldPositionLoc,this->center.x,this->center.y);
 
   glLineWidth(2.0f);
   glBindBuffer(GL_ARRAY_BUFFER,vbo);
@@ -91,7 +89,7 @@ void Spawner::draw() {
   ColorLoc = glGetUniformLocation(shader->ID, "Color"); 
   glUniform3f(ColorLoc,1.f,1.f,1.f);
   WorldPositionLoc = glGetUniformLocation(shader->ID, "WorldPosition"); 
-  glUniform2f(WorldPositionLoc,this->cx,this->cy);
+  glUniform2f(WorldPositionLoc,this->center.x,this->center.y);
 
   glPointSize(4.0f);
   glBindBuffer(GL_ARRAY_BUFFER,vboScale);
@@ -119,11 +117,11 @@ Ball* Spawner::spawn(float currentTime) {
   //are we within the left quantum and it isn't the last quantum?
   if ( leftQuantum != lastQuantumSpawn && fabs( leftQuantum - now ) < epsilon ) {
     lastQuantumSpawn = leftQuantum;
-    return new Ball(this->ballShader,this->sides,this->cx,this->cy);
+    return new Ball(this->ballShader,this->sides,this->center.x,this->center.y);
   }
   if ( rightQuantum != lastQuantumSpawn && fabs( rightQuantum - now ) < epsilon ) {
     lastQuantumSpawn = rightQuantum;
-    return new Ball(this->ballShader,this->sides,this->cx,this->cy);
+    return new Ball(this->ballShader,this->sides,this->center.x,this->center.y);
   }
 
   return nullptr;
@@ -133,21 +131,21 @@ Ball* Spawner::spawn(float currentTime) {
 bool Spawner::IsHovering(float ndcx,float ndcy) {
   //we "move" the circle that represents a spawner to the origin
   //and the ndc coordintes to see if they are within the circle 
-  float local_x = ndcx - this->cx;
-  float local_y = ndcy - this->cy;
+  float local_x = ndcx - this->center.x;
+  float local_y = ndcy - this->center.y;
   float local_r = sqrt(pow(local_x,2) + pow(local_y,2));
   float tolerance = 1.2f; //enlarge the detection radius slightly more than the actualy shape
   return ( local_r < (this->radius*tolerance));
 }
 
 void Spawner::move(float x,float y) {
-  this->cx += x;
-  this->cy += y;
+  this->center.x += x;
+  this->center.y += y;
 }
 
 void Spawner::position(float x,float y) {
-  this->cx = x;
-  this->cy = y;
+  this->center.x = x;
+  this->center.y = y;
 }
 
 void Spawner::setScale(unsigned int scale) {
