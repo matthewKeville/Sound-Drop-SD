@@ -120,6 +120,12 @@ void Line::position(float x,float y) {
   updateModelMatrix();
 }
 
+void Line::updatePoints(glm::vec2 newPointA,glm::vec2 newPointB) {
+  this->pointA = newPointA;
+  this->pointB = newPointB;
+  updateModelMatrix();
+}
+
 std::tuple<glm::vec2,glm::vec2> Line::getPosition() {
   return {
     pointA, pointB

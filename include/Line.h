@@ -16,6 +16,7 @@ class Line : public Interactable {
     void calculateToneAndColor(std::function<int(float)>,
         std::function<std::tuple<float,float,float>(int)>);
     std::tuple<glm::vec2,glm::vec2> getPosition();
+    void updatePoints(glm::vec2,glm::vec2);
     //Interactable
     void move(float x,float y);
     bool IsHovering(float,float);

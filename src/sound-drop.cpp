@@ -32,9 +32,10 @@ const int MAX_BALLS = 300;
 int windowWidth;                //glfw window dimensions
 int windowHeight;
 GLFWwindow* window;
+//glm::vec4 clearColor{1.0f,0.0f,0.0f,0.0f};
+glm::vec4 clearColor{0.0f,0.0f,0.0f,0.0f};
 
 //state
-
 bool lineDrawing = false;
 bool selected = false;
 bool pausePhysics = false;
@@ -49,10 +50,9 @@ Shader* ballShader;
 //lines
 std::vector<Line*> lines;
 
-//line preview var
-float preview[2*3]{};           
-unsigned int drawPreviewVao;
-unsigned int drawPreviewVbo;
+Line* previewLine;
+float previewX = 0;
+float previewY = 0;
 
 //balls
 double ballGravity =  -0.0002f;
@@ -136,7 +136,6 @@ int main() {
   soloud.init();
   soloud.setGlobalVolume(GLOBAL_DEFAULT_VOLUME);
   soloud.setMaxActiveVoiceCount(MAX_VOICE_COUNT);
-  //soloud.setMaxActiveVoiceCount(32);
   // audio samples
   sampleData.push_back({"res/marimba.wav",44100});
   sampleData.push_back({"res/clipped/sine_440hz_44100_100ms.wav",44100});
@@ -239,31 +238,15 @@ int main() {
 
   glViewport(0, 0, 800, 600);
   glfwGetWindowSize(window,&windowWidth,&windowHeight);
+  //glClearColor(0.0f, 0.0f, 0.0f, 0.0f); 
+  glClearColor(clearColor.x,clearColor.y,clearColor.z,clearColor.w);
 
   lineShader = new Shader("shaders/line.vs","shaders/line.fs");
   ballShader = new Shader("shaders/ball.vs","shaders/line.fs");
 
-  //load default preview data
- 
- /* 
-  preview[0] = 0.0f;
-  preview[1] = 0.0f;
-  preview[2] = 0.0f;
-  preview[3] = 0.0f;
-  preview[4] = 0.0f;
-  preview[5] = 0.0f;
-
   //preview line
-  glGenVertexArrays(1, &drawPreviewVao);
-  glGenBuffers(1,&drawPreviewVbo);
-  glBindBuffer(GL_ARRAY_BUFFER, drawPreviewVbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 * 3, preview, GL_STATIC_DRAW);//stores 2 lines
-  glBindVertexArray(drawPreviewVao);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);//positions
-  glEnableVertexAttribArray(0); 
-  glBindVertexArray(0);
-
- */
+  auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
+  previewLine = new Line(lineShader,previewX,previewY,mouseXToViewX(mouseX),mouseYToViewY(mouseY),semitoneMapper,colorMapper);
 
   spawners.push_back(new Spawner(ballShader,ballShader,
         DEFAULT_SPAWN_X,DEFAULT_SPAWN_Y,
@@ -332,9 +315,7 @@ int main() {
     //RENDER
     ///////////////////////////////
     
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f); 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
-
 
     //draw lines
     for (auto lp : lines) {
@@ -343,7 +324,7 @@ int main() {
 
     //draw preview
     if (lineDrawing) {
-      //drawLinePreview();
+      drawLinePreview();
     }
 
     //draw ball spawner
@@ -662,45 +643,34 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         if ( !lineDrawing ) {
 
           //map mouse coordinates to view plane
-          float xPos = mouseXToViewX(mouseX);
-          float yPos = mouseYToViewY(mouseY);
-
-          //write this vertex into the preview buffer
-          preview[0] = xPos;
-          preview[1] = yPos;
-          preview[2] = 0;
-
+          previewX = mouseXToViewX(mouseX);
+          previewY = mouseYToViewY(mouseY);
           lineDrawing = true;
-
         } else { 
 
-          float xPos;
-          float yPos;
-
+          float xPos; float yPos;
           constrainedPreviewLineTerminal(xPos,yPos);
           
           //create a Line instance of this line
-            //get mapping functions for the line instance
           auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
-          lines.push_back(new Line(lineShader,preview[0],preview[1],xPos,yPos,semitoneMapper,colorMapper));
+          lines.push_back(new Line(lineShader,previewX,previewY,xPos,yPos,semitoneMapper,colorMapper));
           lineDrawing = false;
-
         }
 
       ////////////////////////////////
       //interactable selection 
       ////////////////////////////////
       } else if ( !selected && hovered!=nullptr ) {
+
         selected = true;
         interactable = hovered;
 
       } else if ( selected ) {
+
         selected = false;
         interactable = nullptr;
       }
-
     }
-
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
@@ -711,28 +681,14 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 
 
 void drawLinePreview(){
-  float xPos;
-  float yPos;
+
+  float xPos; float yPos;
   constrainedPreviewLineTerminal(xPos,yPos);
 
-  preview[3] = xPos;
-  preview[4] = yPos;
-  preview[5] = 0.0f;
-
-  float width = sqrt( pow(preview[4] - preview[1],2) + pow(preview[3] - preview[0],2));
-
   auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
-  int semitone = semitoneMapper(width);
-  std::tuple<float,float,float> color = colorMapper(semitone);
-
-  lineShader->use();
-  int ColorLoc = glGetUniformLocation(lineShader->ID, "Color"); 
-  glBindVertexArray(drawPreviewVao); 
-  glBindBuffer(GL_ARRAY_BUFFER, drawPreviewVbo);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(preview), preview);
-  glUniform3f(ColorLoc,std::get<0>(color),std::get<1>(color),std::get<2>(color));
-  glLineWidth(6.0f);
-  glDrawArrays(GL_LINES, 0, 2);
+  previewLine->updatePoints(glm::vec2(previewX,previewY),glm::vec2(xPos,yPos));
+  previewLine->calculateToneAndColor(semitoneMapper,colorMapper);
+  previewLine->draw();
 }
 
 /* 
@@ -746,19 +702,18 @@ void constrainedPreviewLineTerminal(float& xPos,float& yPos) {
 
   //constrain the line between our bounds
   
-  float vecX = xPos-preview[0];
-  float vecY = yPos-preview[1];
+  float vecX = xPos-previewX;
+  float vecY = yPos-previewY;
   float distance = sqrt( pow(vecX,2) + pow(vecY,2) );
 
-
   if ( distance > keville::util::MAX_LINE_WIDTH ) {
-    xPos = preview[0] + (vecX/distance)*keville::util::MAX_LINE_WIDTH;
-    yPos = preview[1] + (vecY/distance)*keville::util::MAX_LINE_WIDTH;
+    xPos = previewX + (vecX/distance)*keville::util::MAX_LINE_WIDTH;
+    yPos = previewY + (vecY/distance)*keville::util::MAX_LINE_WIDTH;
   }
 
   if ( distance < keville::util::MIN_LINE_WIDTH ) {
-    xPos = preview[0] + (vecX/distance)*keville::util::MIN_LINE_WIDTH;
-    yPos = preview[1] + (vecY/distance)*keville::util::MIN_LINE_WIDTH;
+    xPos = previewX + (vecX/distance)*keville::util::MIN_LINE_WIDTH;
+    yPos = previewY + (vecY/distance)*keville::util::MIN_LINE_WIDTH;
   }
 
 }
