@@ -54,6 +54,18 @@ unsigned int lineVao;
 unsigned int lineVbo;
 float lineVertices[6] {0}; 
 
+//ball gl vars
+unsigned int ballVao;
+unsigned int ballVbo;
+float* ballVertices; //note float* instead of [], ball resolution can change at runtime
+const unsigned int ballSideApproximationDepth = 30; //how many sides do we render per ball
+                                                   
+//spawner gl vars
+unsigned int spawnerVao;
+unsigned int spawnerVbo;
+float* spawnerVertices; //note float* instead of [], ball resolution can change at runtime
+const unsigned int spawnerSideApproximationDepth = 30; //how many sides do we render per ball
+
 Line* previewLine;
 float previewX = 0;
 float previewY = 0;
@@ -262,12 +274,51 @@ int main() {
   glBindBuffer(GL_ARRAY_BUFFER, lineVbo);
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 * 3, lineVertices, GL_STATIC_DRAW);//stores 2 lines
 
+  // Balll Rendering Vars
+  //
+  int ballVertexTotal;
+  ballVertices =  keville::util::generate_regular_polygon_vertices(ballSideApproximationDepth,1,ballVertexTotal);
+  //generate buffers
+  glGenVertexArrays(1, &ballVao);
+  glGenBuffers(1,&ballVbo);
+  //assemble vertex array
+  glBindBuffer(GL_ARRAY_BUFFER,ballVbo);
+  glBindVertexArray(ballVao);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+  glEnableVertexAttribArray(0); 
+  glBindVertexArray(0);
+ 
+  //initialize vertex buffer
+  glBindBuffer(GL_ARRAY_BUFFER, ballVbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 3 * ballSideApproximationDepth, ballVertices, GL_STATIC_DRAW);//stores 2 lines
+                                                                                                                  
 
+  // Spawner Rendering Vars
+
+  int spawnerVertexTotal = 0; 
+  spawnerVertices = keville::util::generate_regular_polygon_hull_vertices(spawnerSideApproximationDepth,1,spawnerVertexTotal);
+
+  //generate buffers
+  glGenVertexArrays(1, &spawnerVao);
+  glGenBuffers(1,&spawnerVbo);
+  //assemble vertex array
+  glBindBuffer(GL_ARRAY_BUFFER,spawnerVbo);
+  glBindVertexArray(spawnerVao);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+  glEnableVertexAttribArray(0); 
+  glBindVertexArray(0);
+ 
+  //initialize vertex buffer
+  glBindBuffer(GL_ARRAY_BUFFER, spawnerVbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 2 * spawnerSideApproximationDepth, spawnerVertices, GL_STATIC_DRAW);
+  
+  
   //preview line
   auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
   previewLine = new Line(lineShader,&lineVao,&lineVbo,previewX,previewY,mouseXToViewX(mouseX),mouseYToViewY(mouseY),semitoneMapper,colorMapper);
 
-  spawners.push_back(new Spawner(ballShader,ballShader,
+  //Spawner(Shader*,Shader*,const unsigned int*,const unsigned int*,float,float,float,unsigned int);
+  spawners.push_back(new Spawner(ballShader,ballShader,&spawnerVao,&spawnerVbo,&ballVao,&ballVbo,
         DEFAULT_SPAWN_X,DEFAULT_SPAWN_Y,
         DEFAULT_BASE_SPAWN_FREQUENCY,4.0f));
   
@@ -568,7 +619,7 @@ void processInput(GLFWwindow* window) {
   if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
     if (!S_PRESSED) {
       if (!selected && hovered == nullptr) {
-        spawners.push_back(new Spawner(ballShader,ballShader,mouseXToViewX(mouseX),mouseYToViewY(mouseY),
+        spawners.push_back(new Spawner(ballShader,ballShader,&spawnerVao,&spawnerVbo,&ballVao,&ballVbo,mouseXToViewX(mouseX),mouseYToViewY(mouseY),
           DEFAULT_BASE_SPAWN_FREQUENCY,DEFAULT_SPAWN_SCALE));
       }
       S_PRESSED = true;

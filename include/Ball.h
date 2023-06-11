@@ -10,18 +10,18 @@ class Ball {
     glm::vec2 velocity;
 
     void draw();
-    Ball(Shader*,int,float,float);
-    Shader* shader;
+    Ball(Shader*,const unsigned int*,const unsigned int*,const int*,float,float);
     void print();
     void move(float x, float y);
 
   private:
-    unsigned int vao;
-    unsigned int vbo;
-    float* vertices; 
-
-    unsigned int sides;
+    Shader* shader;
+    const unsigned int* vao;
+    const unsigned int* vbo;
+    glm::mat4 model;
+    const int* sides;
     float radius;
+    void updateModelMatrix();
 };
 
 #endif

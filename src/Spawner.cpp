@@ -4,10 +4,13 @@
 #include <cmath>
 #include "util.h"
 
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 //i think there is a memory leak here
 
-Spawner::Spawner(Shader* shader,Shader* ballShader,float cx, float cy,float
-    baseFrequency,unsigned int scale) {
+Spawner::Spawner(Shader* shader,Shader* ballShader,const unsigned int* spawnerVao,const unsigned int* spawnerVbo,const unsigned int* ballVao,const unsigned int* ballVbo,float cx, float cy,float
+    baseFrequency,float scale) {
 
   this->ballShader = ballShader;
   this->shader = shader;
@@ -20,26 +23,24 @@ Spawner::Spawner(Shader* shader,Shader* ballShader,float cx, float cy,float
   this->scale = scale;
   this->lastQuantumSpawn = 0;
 
+  this->vao = spawnerVao;
+  this->vbo = spawnerVbo;
 
-  //Main Rendering Data
-  int vertex_total = 0; 
-  this->vertices = keville::util::generate_regular_polygon_hull_vertices(this->sides,this->radius,vertex_total);
+  this->ballVao = ballVao;
+  this->ballVbo = ballVbo;
 
-  //generate buffers
-  glGenVertexArrays(1, &vao);
-  glGenBuffers(1,&vbo);
-  //assemble vertex array
-  glBindBuffer(GL_ARRAY_BUFFER,vbo);
-  glBindVertexArray(vao);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-  glEnableVertexAttribArray(0); 
-  glBindVertexArray(0);
- 
-  //initialize vertex buffer
-  glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 2 * this->sides, vertices, GL_STATIC_DRAW);
+  updateModelMatrix();
 
+  //////////////////////////////////////
   //Scale Indicator Rendering Data
+  //////////////////////////////////////
+  
+  //this refactor will be more involved,
+  //one approach would be instancing
+  //another would be to have n buffers for n scale states
+  //and the vbo* could swap when the scale swaps
+ 
+ /* 
   this->verticesScale = new float[3*this->MAX_SCALE]{}; //we allocate enough space so if we change scale
                                                   //we can accomodate the rendering of it's indicator
   float phi = M_PI/8.0; 
@@ -66,6 +67,7 @@ Spawner::Spawner(Shader* shader,Shader* ballShader,float cx, float cy,float
   //initialize vertex buffer
   glBindBuffer(GL_ARRAY_BUFFER, vboScale);
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * MAX_SCALE, verticesScale, GL_STATIC_DRAW);
+  */
 
 }
 
@@ -75,16 +77,18 @@ void Spawner::draw() {
 
   int ColorLoc = glGetUniformLocation(shader->ID, "Color"); 
   glUniform3f(ColorLoc,1.f,1.f,1.f);
-  int WorldPositionLoc = glGetUniformLocation(shader->ID, "WorldPosition"); 
-  glUniform2f(WorldPositionLoc,this->center.x,this->center.y);
+
+  int ModelLoc = glGetUniformLocation(shader->ID, "Model"); 
+  glUniformMatrix4fv(ModelLoc, 1, GL_FALSE, glm::value_ptr(this->model));
 
   glLineWidth(2.0f);
-  glBindBuffer(GL_ARRAY_BUFFER,vbo);
-  glBindVertexArray(vao); 
+  glBindBuffer(GL_ARRAY_BUFFER,*vbo);
+  glBindVertexArray(*vao); 
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 3 * 2 * this->sides, vertices);
   glDrawArrays(GL_LINES, 0, 3*this->sides);
 
   //draw scale indicators
+  /*
   shader->use();
   ColorLoc = glGetUniformLocation(shader->ID, "Color"); 
   glUniform3f(ColorLoc,1.f,1.f,1.f);
@@ -96,6 +100,7 @@ void Spawner::draw() {
   glBindVertexArray(vaoScale); 
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 3 * this->scale , verticesScale);
   glDrawArrays(GL_POINTS, 0, this->scale);
+  */
 
 }
 
@@ -117,11 +122,11 @@ Ball* Spawner::spawn(float currentTime) {
   //are we within the left quantum and it isn't the last quantum?
   if ( leftQuantum != lastQuantumSpawn && fabs( leftQuantum - now ) < epsilon ) {
     lastQuantumSpawn = leftQuantum;
-    return new Ball(this->ballShader,this->sides,this->center.x,this->center.y);
+    return new Ball(this->ballShader,this->ballVao,this->ballVbo,(const int*)&this->sides,this->center.x,this->center.y);
   }
   if ( rightQuantum != lastQuantumSpawn && fabs( rightQuantum - now ) < epsilon ) {
     lastQuantumSpawn = rightQuantum;
-    return new Ball(this->ballShader,this->sides,this->center.x,this->center.y);
+    return new Ball(this->ballShader,this->ballVao,this->ballVbo,(const int*)&this->sides,this->center.x,this->center.y);
   }
 
   return nullptr;
@@ -141,11 +146,13 @@ bool Spawner::IsHovering(float ndcx,float ndcy) {
 void Spawner::move(float x,float y) {
   this->center.x += x;
   this->center.y += y;
+  updateModelMatrix();
 }
 
 void Spawner::position(float x,float y) {
   this->center.x = x;
   this->center.y = y;
+  updateModelMatrix();
 }
 
 void Spawner::setScale(unsigned int scale) {
@@ -156,8 +163,12 @@ unsigned int Spawner::getScale() {
   return this->scale;
 }
 
+void Spawner::updateModelMatrix() {
+  this->model = glm::mat4(1.0f);
+  this->model = glm::translate(this->model,glm::vec3(center.x,center.y,0));   //translate into place
+  this->model = glm::scale(this->model,this->radius * glm::vec3(1));
 
-
+}
 
 
 

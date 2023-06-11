@@ -10,7 +10,7 @@
 class Spawner : public Interactable {
   public:
     void draw();
-    Spawner(Shader*,Shader*,float,float,float,unsigned int);
+    Spawner(Shader*,Shader*,const unsigned int*,const unsigned int*,const unsigned int*,const unsigned int*,float,float,float,float);
     Ball* spawn(float currentTime/*in s from app start */);
     //Interactable
     void move(float x, float y);
@@ -20,8 +20,6 @@ class Spawner : public Interactable {
     unsigned int getScale();
   private:
     //opengl buffers main circle
-    unsigned int vao;
-    unsigned int vbo;
     float* vertices; 
     //opengl buffers scale circle
     unsigned int vaoScale;
@@ -42,6 +40,15 @@ class Spawner : public Interactable {
     const unsigned int MAX_SCALE = 10;
     float lastTime;
     double lastSpawn;
+
+    const unsigned int* ballVao;
+    const unsigned int* ballVbo;
+    const unsigned int* vao;
+    const unsigned int* vbo;
+
+    glm::mat4 model;
+    void updateModelMatrix();
+
 };
 
 #endif

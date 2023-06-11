@@ -27,7 +27,6 @@ class Line : public Interactable {
     Shader* shader;
     const unsigned int* vao;
     const unsigned int* vbo;
-    float* vertices; 
     glm::mat4 model;
     glm::vec2 pointA;
     glm::vec2 pointB;
