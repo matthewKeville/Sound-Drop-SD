@@ -244,7 +244,8 @@ int main() {
   ballShader = new Shader("shaders/ball.vs","shaders/line.fs");
 
   //load default preview data
-  
+ 
+ /* 
   preview[0] = 0.0f;
   preview[1] = 0.0f;
   preview[2] = 0.0f;
@@ -261,6 +262,8 @@ int main() {
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);//positions
   glEnableVertexAttribArray(0); 
   glBindVertexArray(0);
+
+ */
 
   spawners.push_back(new Spawner(ballShader,ballShader,
         DEFAULT_SPAWN_X,DEFAULT_SPAWN_Y,
@@ -340,7 +343,7 @@ int main() {
 
     //draw preview
     if (lineDrawing) {
-      drawLinePreview();
+      //drawLinePreview();
     }
 
     //draw ball spawner

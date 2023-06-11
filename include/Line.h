@@ -13,7 +13,6 @@ class Line : public Interactable {
     std::tuple<float,float,float> color;
     Line(Shader*,float,float,float,float,std::function<int(float width)>,std::function<std::tuple<float,float,float>(int semitones)> );
     void draw();
-    void print();
     void calculateToneAndColor(std::function<int(float)>,
         std::function<std::tuple<float,float,float>(int)>);
     std::tuple<glm::vec2,glm::vec2> getPosition();
@@ -28,6 +27,10 @@ class Line : public Interactable {
     unsigned int vao;
     unsigned int vbo;
     float* vertices; 
+    glm::mat4 model;
+    glm::vec2 pointA;
+    glm::vec2 pointB;
+    void updateModelMatrix();
 };
 
 #endif

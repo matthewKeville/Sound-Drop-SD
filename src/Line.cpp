@@ -3,22 +3,22 @@
 #include "util.h"
 #include <cmath>
 #include <functional>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 Line::Line(Shader* shader,float x0,float y0, float xf, float yf,
     std::function<int(float width)> widthSemitoneMap,
     std::function<std::tuple<float,float,float>(int)> semitoneColorMap) {
 
   this->shader = shader;
-  this->vertices = new float[6];
-  this->vertices[0] = x0;
-  this->vertices[1] = y0;
-  this->vertices[2] = 0.0f;
-  this->vertices[3] = xf;
-  this->vertices[4] = yf;
-  this->vertices[5] = 0.0f;
 
+  this->pointA = glm::vec2(x0,y0);
+  this->pointB = glm::vec2(xf,yf);
 
-  //generate buffers
+  updateModelMatrix();
+  calculateToneAndColor(widthSemitoneMap,semitoneColorMap);
+
+  this->vertices = new float[6] { 0, 0, 0, 1, 0, 0 };
   glGenVertexArrays(1, &vao);
   glGenBuffers(1,&vbo);
   //assemble vertex array
@@ -31,31 +31,24 @@ Line::Line(Shader* shader,float x0,float y0, float xf, float yf,
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 * 3, vertices, GL_STATIC_DRAW);//stores 2 lines
 
-  //assign tone & color
-  calculateToneAndColor(widthSemitoneMap,semitoneColorMap);
-
 }
 
 
 void Line::draw() {
+
   shader->use();
   int ColorLoc = glGetUniformLocation(shader->ID, "Color"); 
+  glUniform3f(ColorLoc,std::get<0>(color),std::get<1>(color),std::get<2>(color));
+  int ModelLoc = glGetUniformLocation(shader->ID, "Model"); 
+  glUniformMatrix4fv(ModelLoc, 1, GL_FALSE, glm::value_ptr(this->model));
+
   glBindBuffer(GL_ARRAY_BUFFER,vbo);
   glBindVertexArray(vao); 
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 2 * 3, vertices);
-  glUniform3f(ColorLoc,std::get<0>(color),std::get<1>(color),std::get<2>(color));
   glLineWidth(6.0f);
   glDrawArrays(GL_LINES, 0, 2);
 }
 
-void Line::print() {
-  char msg[120];
-  char msg2[120];
-  sprintf(msg,"vertex data\n\tx0:%f\ty0:%f\tz0:%f",vertices[0],vertices[1],vertices[2]);
-  sprintf(msg2,"\t\nxf:%f\tyf:%f\tzf:%f",vertices[3],vertices[4],vertices[5]);
-  std::cout << msg << std::endl;
-  std::cout << msg2 << std::endl;
-}
 
 bool Line::IsHovering(float ndcx,float ndcy) {
 
@@ -67,16 +60,15 @@ bool Line::IsHovering(float ndcx,float ndcy) {
      */
   
     //separete our line into ordered components
-    float xl;
-    float yl;
-    float xr;
-    float yr;
-  
-    xl = vertices[0]; yl = vertices[1];
-    xr = vertices[3]; yr = vertices[4];
-    if (vertices[3] < vertices[0]){
-      xr = vertices[0]; yr = vertices[1];
-      xl = vertices[3]; yl = vertices[4];
+    float xl = pointA.x;
+    float yl = pointA.y;
+    float xr = pointB.x;
+    float yr = pointB.y;
+    if ( pointB.x < pointA.x ) {
+      xl = pointB.x;
+      yl = pointB.y;
+      xr = pointA.x;
+      yr = pointA.y;
     }
 
     //find a translation vector to make the (xl,yl) coordinate coincident with the origin
@@ -116,39 +108,43 @@ bool Line::IsHovering(float ndcx,float ndcy) {
 
 
 void Line::move(float x,float y) {
-  vertices[0] += x;
-  vertices[1] += y;
-  vertices[3] += x;
-  vertices[4] += y;
+  pointA += glm::vec2(x,y);
+  pointB += glm::vec2(x,y);
+  updateModelMatrix();
 }
 
 void Line::position(float x,float y) {
-  float dx = vertices[3] - vertices[0];
-  float dy = vertices[4] - vertices[1];
-  vertices[0] = x;
-  vertices[1] = y;
-  vertices[3] = x + dx;
-  vertices[4] = y + dy;
+  glm::vec2 diff2 = pointB - pointA;
+  pointA = glm::vec2(x,y);
+  pointB = pointA + diff2;
+  updateModelMatrix();
 }
 
 std::tuple<glm::vec2,glm::vec2> Line::getPosition() {
-  return { 
-    glm::vec2(vertices[0],vertices[1]) , 
-    glm::vec2(vertices[3],vertices[4]) 
+  return {
+    pointA, pointB
   };
+}
+
+void Line::updateModelMatrix() {
+  //derive a model matrix based on the points of our line segment
+  glm::vec2 diff2 = this->pointB - this->pointA;
+  glm::vec3 diff = glm::vec3(diff2.x,diff2.y,0);
+
+  float magnitude = sqrt(glm::dot(diff,diff));
+  float theta = atan2(diff.y,diff.x);
+
+  this->model = glm::mat4(1.0f);
+  this->model = glm::translate(this->model,glm::vec3(pointA.x,pointA.y,0));   //translate into place
+  this->model = glm::scale(this->model,magnitude * glm::vec3(1));
+  this->model = glm::rotate(this->model, theta, glm::vec3(0,0,1)); //we rotate by the angle of the diff vector
 }
 
 void Line::calculateToneAndColor(
     std::function<int(float width)> widthSemitoneMap,
     std::function<std::tuple<float,float,float>(int)> semitoneColorMap) {
-    
-  //assign tone & color
-  float x0 = vertices[0];
-  float y0 = vertices[1];
-  float xf = vertices[3];
-  float yf = vertices[4];
 
-  float line_width = sqrt( pow(yf-y0,2) + pow(xf-x0,2) );
+  float line_width = sqrt( pow(pointB.y-pointA.y,2) + pow(pointB.x-pointA.x,2) );
   this->semitone = widthSemitoneMap(line_width);
   this->color = semitoneColorMap(semitone);
 
