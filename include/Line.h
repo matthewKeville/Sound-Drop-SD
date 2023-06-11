@@ -11,7 +11,7 @@ class Line : public Interactable {
   public:
     int semitone;
     std::tuple<float,float,float> color;
-    Line(Shader*,float,float,float,float,std::function<int(float width)>,std::function<std::tuple<float,float,float>(int semitones)> );
+    Line(Shader*,const unsigned int*,const unsigned int*,float,float,float,float,std::function<int(float width)>,std::function<std::tuple<float,float,float>(int semitones)> );
     void draw();
     void calculateToneAndColor(std::function<int(float)>,
         std::function<std::tuple<float,float,float>(int)>);
@@ -25,8 +25,8 @@ class Line : public Interactable {
     void markDeleted();
   private :
     Shader* shader;
-    unsigned int vao;
-    unsigned int vbo;
+    const unsigned int* vao;
+    const unsigned int* vbo;
     float* vertices; 
     glm::mat4 model;
     glm::vec2 pointA;

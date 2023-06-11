@@ -49,6 +49,10 @@ Shader* ballShader;
 
 //lines
 std::vector<Line*> lines;
+//line gl vars
+unsigned int lineVao;
+unsigned int lineVbo;
+float lineVertices[6] {0}; 
 
 Line* previewLine;
 float previewX = 0;
@@ -100,7 +104,6 @@ const unsigned int NUM_SAVE_SLOTS = 3;
 int selectedSaveSlot = 0;
 SaveState saveSlots[NUM_SAVE_SLOTS];
                                                               
-
 //Key states
 bool S_PRESSED = false;
 bool P_PRESSED = false;
@@ -244,9 +247,25 @@ int main() {
   lineShader = new Shader("shaders/line.vs","shaders/line.fs");
   ballShader = new Shader("shaders/ball.vs","shaders/line.fs");
 
+  // Line Rendering Vars
+
+  lineVertices[3] = 1.0f; // {0 0 0 1 0 0} 
+  glGenVertexArrays(1, &lineVao);
+  glGenBuffers(1,&lineVbo);
+  //assemble vertex array
+  glBindBuffer(GL_ARRAY_BUFFER,lineVbo);
+  glBindVertexArray(lineVao);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+  glEnableVertexAttribArray(0); 
+  glBindVertexArray(0);
+  //initialize vertex buffer
+  glBindBuffer(GL_ARRAY_BUFFER, lineVbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 * 3, lineVertices, GL_STATIC_DRAW);//stores 2 lines
+
+
   //preview line
   auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
-  previewLine = new Line(lineShader,previewX,previewY,mouseXToViewX(mouseX),mouseYToViewY(mouseY),semitoneMapper,colorMapper);
+  previewLine = new Line(lineShader,&lineVao,&lineVbo,previewX,previewY,mouseXToViewX(mouseX),mouseYToViewY(mouseY),semitoneMapper,colorMapper);
 
   spawners.push_back(new Spawner(ballShader,ballShader,
         DEFAULT_SPAWN_X,DEFAULT_SPAWN_Y,
@@ -653,7 +672,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
           
           //create a Line instance of this line
           auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
-          lines.push_back(new Line(lineShader,previewX,previewY,xPos,yPos,semitoneMapper,colorMapper));
+          lines.push_back(new Line(lineShader,&lineVao,&lineVbo,previewX,previewY,xPos,yPos,semitoneMapper,colorMapper));
           lineDrawing = false;
         }
 

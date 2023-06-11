@@ -6,45 +6,35 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-Line::Line(Shader* shader,float x0,float y0, float xf, float yf,
+Line::Line(Shader* shader,const unsigned int* vao, const unsigned int* vbo, float x0, float y0, float xf, float yf,
     std::function<int(float width)> widthSemitoneMap,
     std::function<std::tuple<float,float,float>(int)> semitoneColorMap) {
 
   this->shader = shader;
+  this->vao = vao;
+  this->vbo = vbo;
 
   this->pointA = glm::vec2(x0,y0);
   this->pointB = glm::vec2(xf,yf);
 
   updateModelMatrix();
   calculateToneAndColor(widthSemitoneMap,semitoneColorMap);
-
-  this->vertices = new float[6] { 0, 0, 0, 1, 0, 0 };
-  glGenVertexArrays(1, &vao);
-  glGenBuffers(1,&vbo);
-  //assemble vertex array
-  glBindBuffer(GL_ARRAY_BUFFER,vbo);
-  glBindVertexArray(vao);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-  glEnableVertexAttribArray(0); 
-  glBindVertexArray(0);
-  //initialize vertex buffer
-  glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 * 3, vertices, GL_STATIC_DRAW);//stores 2 lines
-
 }
 
 
 void Line::draw() {
 
   shader->use();
+
   int ColorLoc = glGetUniformLocation(shader->ID, "Color"); 
   glUniform3f(ColorLoc,std::get<0>(color),std::get<1>(color),std::get<2>(color));
+
   int ModelLoc = glGetUniformLocation(shader->ID, "Model"); 
   glUniformMatrix4fv(ModelLoc, 1, GL_FALSE, glm::value_ptr(this->model));
 
-  glBindBuffer(GL_ARRAY_BUFFER,vbo);
-  glBindVertexArray(vao); 
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 2 * 3, vertices);
+  glBindBuffer(GL_ARRAY_BUFFER,*this->vbo);
+  glBindVertexArray(*this->vao); 
+
   glLineWidth(6.0f);
   glDrawArrays(GL_LINES, 0, 2);
 }

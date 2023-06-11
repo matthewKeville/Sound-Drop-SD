@@ -13,7 +13,9 @@ Ball::Ball(Shader* shader,int sides,float cx, float cy) {
   this->shader = shader;
 
   int vertex_total = 0;
+  /* we don't really need a new set of vertices for each Ball */
   this->vertices = keville::util::generate_regular_polygon_vertices(this->sides,this->radius,vertex_total);
+
   //generate buffers
   glGenVertexArrays(1, &vao);
   glGenBuffers(1,&vbo);
