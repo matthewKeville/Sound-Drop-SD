@@ -32,7 +32,6 @@ const int MAX_BALLS = 300;
 int windowWidth;                //glfw window dimensions
 int windowHeight;
 GLFWwindow* window;
-//glm::vec4 clearColor{1.0f,0.0f,0.0f,0.0f};
 glm::vec4 clearColor{0.0f,0.0f,0.0f,0.0f};
 
 //state
@@ -58,13 +57,11 @@ float lineVertices[6] {0};
 unsigned int ballVao;
 unsigned int ballVbo;
 float* ballVertices; //note float* instead of [], ball resolution can change at runtime
-const unsigned int ballSideApproximationDepth = 30; //how many sides do we render per ball
                                                    
 //spawner gl vars
 unsigned int spawnerVao;
 unsigned int spawnerVbo;
 float* spawnerVertices; //note float* instead of [], ball resolution can change at runtime
-const unsigned int spawnerSideApproximationDepth = 30; //how many sides do we render per ball
 
 Line* previewLine;
 float previewX = 0;
@@ -277,7 +274,7 @@ int main() {
   // Balll Rendering Vars
   //
   int ballVertexTotal;
-  ballVertices =  keville::util::generate_regular_polygon_vertices(ballSideApproximationDepth,1,ballVertexTotal);
+  ballVertices =  keville::util::generate_regular_polygon_vertices(keville::util::CIRCLE_SIDES,1,ballVertexTotal);
   //generate buffers
   glGenVertexArrays(1, &ballVao);
   glGenBuffers(1,&ballVbo);
@@ -290,13 +287,13 @@ int main() {
  
   //initialize vertex buffer
   glBindBuffer(GL_ARRAY_BUFFER, ballVbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 3 * ballSideApproximationDepth, ballVertices, GL_STATIC_DRAW);//stores 2 lines
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 3 * keville::util::CIRCLE_SIDES, ballVertices, GL_STATIC_DRAW);//stores 2 lines
                                                                                                                   
 
   // Spawner Rendering Vars
 
   int spawnerVertexTotal = 0; 
-  spawnerVertices = keville::util::generate_regular_polygon_hull_vertices(spawnerSideApproximationDepth,1,spawnerVertexTotal);
+  spawnerVertices = keville::util::generate_regular_polygon_hull_vertices(keville::util::CIRCLE_SIDES,1,spawnerVertexTotal);
 
   //generate buffers
   glGenVertexArrays(1, &spawnerVao);
@@ -310,7 +307,7 @@ int main() {
  
   //initialize vertex buffer
   glBindBuffer(GL_ARRAY_BUFFER, spawnerVbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 2 * spawnerSideApproximationDepth, spawnerVertices, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 2 * keville::util::CIRCLE_SIDES, spawnerVertices, GL_STATIC_DRAW);
   
   
   //preview line
@@ -1047,21 +1044,24 @@ void update_balls() {
   while (itty != balls.end()) {
     Ball* bp = *itty;
 
-    glm::vec2 centerFinal = bp->center;
-    glm::vec2 velocityFinal = bp->velocity;
+    glm::vec2 centerFinal;
+    glm::vec2 velocityFinal = bp->getVelocity();//bp->velocity;
 
     //free falling?
     velocityFinal.y += ballGravity;
-
-    centerFinal.x = bp->center.x + bp->velocity.x;
-    centerFinal.y = bp->center.y + bp->velocity.y;
+    centerFinal = bp->getPosition() + bp->getVelocity();
 
     //collision with line?
     for ( auto lp : lines ) {
       auto [ pointA , pointB ] = lp->getPosition();
       float solx;
       float soly;
-      bool intersect = testLineSegmentIntersection(pointA.x,pointA.y,pointB.x,pointB.y,bp->center.x,bp->center.y,centerFinal.x,centerFinal.y,&solx,&soly);
+
+      bool intersect = testLineSegmentIntersection(pointA.x,pointA.y,
+          pointB.x,pointB.y,
+          bp->getPosition().x,bp->getPosition().y,
+          centerFinal.x,centerFinal.y,
+          &solx,&soly);
 
       if (!intersect) {
         continue;
@@ -1077,12 +1077,12 @@ void update_balls() {
       if ( pointB.x == pointA.x ) {
         //  we reflect the velocity vector on the x-axis
         velocityFinal.x *= -1 * collisionRestitution;
-        centerFinal.x = bp->center.x + velocityFinal.x;
+        centerFinal.x = bp->getPosition().x + velocityFinal.x;
       //  horizontal line case (causes line_slope to be 0)
       } else if (pointB.y == pointA.y)  {
         //  we reflect the velocity vector on the y-axis
         velocityFinal.y *= -1 * collisionRestitution;
-        centerFinal.y = bp->center.y + velocityFinal.y;
+        centerFinal.y = bp->getPosition().y + velocityFinal.y;
       } else {
         //  find the normal vectors
           //  we have two possible normals for our line segment, the right one
@@ -1111,17 +1111,16 @@ void update_balls() {
         //  rotate the velocity vector by this angle (this can be rewritten for vectors)
         velocityFinal.x = collisionRestitution * (velocity_norm * cos(resultant_angle));
         velocityFinal.y = collisionRestitution * (velocity_norm * sin(resultant_angle) + ballGravity);
-        centerFinal = bp->center + velocityFinal;
+        centerFinal = bp->getPosition() + velocityFinal;
       }
-
     }
 
     //set the final state of the ball
-    bp->velocity = velocityFinal;
-    bp->center   = centerFinal;
+    bp->setVelocity(velocityFinal);
+    bp->setPosition(centerFinal);
 
     //if ball is outside a circle of radius 5 , delete
-    if (sqrt(glm::dot(bp->center,bp->center)) > 5.0) { 
+    if (sqrt(glm::dot(bp->getPosition(),bp->getPosition())) > 5.0) { 
       delete bp;
       itty = balls.erase(itty);
       std::cout << "deleting" << std::endl;

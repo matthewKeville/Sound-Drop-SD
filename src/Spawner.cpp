@@ -1,31 +1,26 @@
 #include "Spawner.h"
-#include <glad/glad.h>
 #include <stdexcept>
 #include <cmath>
-#include "util.h"
-
+#include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
-//i think there is a memory leak here
+#include "util.h"
 
 Spawner::Spawner(Shader* shader,Shader* ballShader,const unsigned int* spawnerVao,const unsigned int* spawnerVbo,const unsigned int* ballVao,const unsigned int* ballVbo,float cx, float cy,float
     baseFrequency,float scale) {
 
-  this->ballShader = ballShader;
-  this->shader = shader;
 
   this->radius = 0.02f;
-  this->sides = 50;
   this->center = glm::vec2(cx,cy);
 
   this->baseFrequency = baseFrequency;
   this->scale = scale;
   this->lastQuantumSpawn = 0;
 
+  this->ballShader = ballShader;
+  this->shader = shader;
   this->vao = spawnerVao;
   this->vbo = spawnerVbo;
-
   this->ballVao = ballVao;
   this->ballVbo = ballVbo;
 
@@ -73,19 +68,18 @@ Spawner::Spawner(Shader* shader,Shader* ballShader,const unsigned int* spawnerVa
 
 //redundancy here for sure
 void Spawner::draw() {
+
   shader->use();
 
   int ColorLoc = glGetUniformLocation(shader->ID, "Color"); 
   glUniform3f(ColorLoc,1.f,1.f,1.f);
-
   int ModelLoc = glGetUniformLocation(shader->ID, "Model"); 
   glUniformMatrix4fv(ModelLoc, 1, GL_FALSE, glm::value_ptr(this->model));
 
   glLineWidth(2.0f);
   glBindBuffer(GL_ARRAY_BUFFER,*vbo);
   glBindVertexArray(*vao); 
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 3 * 2 * this->sides, vertices);
-  glDrawArrays(GL_LINES, 0, 3*this->sides);
+  glDrawArrays(GL_LINES, 0, 3*keville::util::CIRCLE_SIDES);
 
   //draw scale indicators
   /*
@@ -122,11 +116,11 @@ Ball* Spawner::spawn(float currentTime) {
   //are we within the left quantum and it isn't the last quantum?
   if ( leftQuantum != lastQuantumSpawn && fabs( leftQuantum - now ) < epsilon ) {
     lastQuantumSpawn = leftQuantum;
-    return new Ball(this->ballShader,this->ballVao,this->ballVbo,(const int*)&this->sides,this->center.x,this->center.y);
+    return new Ball(this->ballShader,this->ballVao,this->ballVbo,this->center.x,this->center.y);
   }
   if ( rightQuantum != lastQuantumSpawn && fabs( rightQuantum - now ) < epsilon ) {
     lastQuantumSpawn = rightQuantum;
-    return new Ball(this->ballShader,this->ballVao,this->ballVbo,(const int*)&this->sides,this->center.x,this->center.y);
+    return new Ball(this->ballShader,this->ballVao,this->ballVbo,this->center.x,this->center.y);
   }
 
   return nullptr;

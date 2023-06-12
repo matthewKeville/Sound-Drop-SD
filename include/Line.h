@@ -19,10 +19,8 @@ class Line : public Interactable {
     void updatePoints(glm::vec2,glm::vec2);
     //Interactable
     void move(float x,float y);
-    bool IsHovering(float,float);
     void position(float x,float y);
-    bool isDeleted();
-    void markDeleted();
+    bool IsHovering(float,float);
   private :
     Shader* shader;
     const unsigned int* vao;

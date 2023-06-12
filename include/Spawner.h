@@ -12,12 +12,12 @@ class Spawner : public Interactable {
     void draw();
     Spawner(Shader*,Shader*,const unsigned int*,const unsigned int*,const unsigned int*,const unsigned int*,float,float,float,float);
     Ball* spawn(float currentTime/*in s from app start */);
+    void setScale(unsigned int);
+    unsigned int getScale();
     //Interactable
     void move(float x, float y);
     void position(float x,float y);
     bool IsHovering(float,float);
-    void setScale(unsigned int);
-    unsigned int getScale();
   private:
     //opengl buffers main circle
     float* vertices; 
@@ -29,8 +29,6 @@ class Spawner : public Interactable {
     Shader* shader;
     Shader* ballShader;
 
-    //geometric properties
-    unsigned int sides;
     float radius;
     glm::vec2 center;
     //spawner characteristics

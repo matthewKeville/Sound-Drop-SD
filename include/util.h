@@ -41,6 +41,8 @@ std::tuple<float,float,float> semitone_color_chromatic(int semitone);
 float* generate_regular_polygon_vertices(unsigned int sides,float radius,int& vertex_total);
 float* generate_regular_polygon_hull_vertices(unsigned int sides,float radius,int& vertex_total);
 
+
+extern const unsigned int CIRCLE_SIDES;
 extern const float MAX_LINE_WIDTH; 
 extern const float MIN_LINE_WIDTH; 
 extern const std::tuple<float,float,float> COLOR_RED;

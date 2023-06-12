@@ -4,6 +4,7 @@ Interactable::~Interactable() {
   //no non-primitives to delete
 }
 
+/*
 void Interactable::SetInteracting(bool interacting) {
   this->interacting = interacting;
 }
@@ -11,6 +12,7 @@ void Interactable::SetInteracting(bool interacting) {
 bool Interactable::IsInteracting() {
   return interacting;
 }
+*/
 
 bool Interactable::isDeleted() {
   return deleted;
