@@ -11,6 +11,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/io.hpp> //to use <<() operator
 #include "soloud.h"
 #include "soloud_wav.h"
 #include "soloud_thread.h"
@@ -32,7 +33,10 @@ const int MAX_BALLS = 300;
 int windowWidth;                //glfw window dimensions
 int windowHeight;
 GLFWwindow* window;
+
 glm::vec4 clearColor{0.0f,0.0f,0.0f,0.0f};
+glm::mat4 projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -10.f, 10.0f); //left,right ,bot top , near far
+glm::mat4 view = glm::mat4(1); //under an orthographic projection, view is not relevant as disance doesn't affect image
 
 //state
 bool lineDrawing = false;
@@ -94,7 +98,7 @@ unsigned int SAMPLE_BASE_RATE = 0;
 
 const float GLOBAL_MAX_VOLUME = 2;
 const float GLOBAL_MIN_VOLUME = 0;
-const float GLOBAL_DEFAULT_VOLUME = 1.0f;
+const float GLOBAL_DEFAULT_VOLUME = 0.05f;
 const unsigned int MAX_VOICE_COUNT = 255;//1024 is standard max, but library supports 4095 with compilation flag
                                          //yet, compiler will yell if this is above 255 ?
                                                               
@@ -308,7 +312,23 @@ int main() {
   //initialize vertex buffer
   glBindBuffer(GL_ARRAY_BUFFER, spawnerVbo);
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 2 * keville::util::CIRCLE_SIDES, spawnerVertices, GL_STATIC_DRAW);
-  
+
+  //set default uniforms
+
+  lineShader->use();
+  int projectionLocLine = glGetUniformLocation(lineShader->ID, "Projection"); 
+  int viewLocLine = glGetUniformLocation(lineShader->ID, "View"); 
+  glUniformMatrix4fv(projectionLocLine, 1, GL_FALSE, glm::value_ptr(projection));
+  glUniformMatrix4fv(viewLocLine, 1, GL_FALSE, glm::value_ptr(view));
+
+  ballShader->use();
+  int projectionLocBall = glGetUniformLocation(ballShader->ID, "Projection"); 
+  int viewLocBall = glGetUniformLocation(ballShader->ID, "View"); 
+  glUniformMatrix4fv(projectionLocBall, 1, GL_FALSE, glm::value_ptr(projection));
+  glUniformMatrix4fv(viewLocBall, 1, GL_FALSE, glm::value_ptr(view));
+
+  std::cout << " Projection " << projection << std::endl;
+  std::cout << " View " << view << std::endl;
   
   //preview line
   auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];

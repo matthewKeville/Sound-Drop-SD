@@ -26,44 +26,6 @@ Spawner::Spawner(Shader* shader,Shader* ballShader,const unsigned int* spawnerVa
 
   updateModelMatrix();
 
-  //////////////////////////////////////
-  //Scale Indicator Rendering Data
-  //////////////////////////////////////
-  
-  //this refactor will be more involved,
-  //one approach would be instancing
-  //another would be to have n buffers for n scale states
-  //and the vbo* could swap when the scale swaps
- 
- /* 
-  this->verticesScale = new float[3*this->MAX_SCALE]{}; //we allocate enough space so if we change scale
-                                                  //we can accomodate the rendering of it's indicator
-  float phi = M_PI/8.0; 
-  float rdis = this->radius*2.0f;
-  for ( size_t i = 0; i < MAX_SCALE; i++ ) {
-    float theta = phi*i;
-    float px = rdis*cos(theta);
-    float py = rdis*sin(theta);
-    this->verticesScale[i*3] = px;
-    this->verticesScale[(i*3)+1] = py;
-    this->verticesScale[(i*3)+2] = 0;
-  }
-
-  //generate buffers
-  glGenVertexArrays(1, &vaoScale);
-  glGenBuffers(1,&vboScale);
-  //assemble vertex array
-  glBindBuffer(GL_ARRAY_BUFFER,vboScale);
-  glBindVertexArray(vaoScale);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-  glEnableVertexAttribArray(0); 
-  glBindVertexArray(0);
- 
-  //initialize vertex buffer
-  glBindBuffer(GL_ARRAY_BUFFER, vboScale);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * MAX_SCALE, verticesScale, GL_STATIC_DRAW);
-  */
-
 }
 
 //redundancy here for sure
@@ -80,21 +42,6 @@ void Spawner::draw() {
   glBindBuffer(GL_ARRAY_BUFFER,*vbo);
   glBindVertexArray(*vao); 
   glDrawArrays(GL_LINES, 0, 3*keville::util::CIRCLE_SIDES);
-
-  //draw scale indicators
-  /*
-  shader->use();
-  ColorLoc = glGetUniformLocation(shader->ID, "Color"); 
-  glUniform3f(ColorLoc,1.f,1.f,1.f);
-  WorldPositionLoc = glGetUniformLocation(shader->ID, "WorldPosition"); 
-  glUniform2f(WorldPositionLoc,this->center.x,this->center.y);
-
-  glPointSize(4.0f);
-  glBindBuffer(GL_ARRAY_BUFFER,vboScale);
-  glBindVertexArray(vaoScale); 
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 3 * this->scale , verticesScale);
-  glDrawArrays(GL_POINTS, 0, this->scale);
-  */
 
 }
 
@@ -161,7 +108,6 @@ void Spawner::updateModelMatrix() {
   this->model = glm::mat4(1.0f);
   this->model = glm::translate(this->model,glm::vec3(center.x,center.y,0));   //translate into place
   this->model = glm::scale(this->model,this->radius * glm::vec3(1));
-
 }
 
 
