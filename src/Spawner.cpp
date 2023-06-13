@@ -74,12 +74,12 @@ Ball* Spawner::spawn(float currentTime) {
 
 }
 
-bool Spawner::IsHovering(float ndcx,float ndcy) {
+//(wscp) : world coordinates of mouse position
+bool Spawner::IsHovering(glm::vec2 wscp) {
   //we "move" the circle that represents a spawner to the origin
   //and the ndc coordintes to see if they are within the circle 
-  float local_x = ndcx - this->center.x;
-  float local_y = ndcy - this->center.y;
-  float local_r = sqrt(pow(local_x,2) + pow(local_y,2));
+  auto local = wscp - this->center;
+  float local_r = sqrt(glm::dot(local,local));
   float tolerance = 1.2f; //enlarge the detection radius slightly more than the actualy shape
   return ( local_r < (this->radius*tolerance));
 }

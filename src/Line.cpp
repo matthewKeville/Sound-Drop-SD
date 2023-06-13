@@ -39,21 +39,19 @@ void Line::draw() {
   glDrawArrays(GL_LINES, 0, 2);
 }
 
+bool Line::IsHovering(glm::vec2 wscp) {
 
-bool Line::IsHovering(float ndcx,float ndcy) {
-
-    /*
-     * Translate our Line so that the leftmost coordinate coincides with the origin
-     * Perform an orthographic projection onto the line from our point.
-     * Use this to determine being bound by the ends of our segments.
-     * Use the projection distance to calculate what is considered "near"
-     */
+     // Translate our Line so that the leftmost coordinate coincides with the origin
+     // Perform an orthographic projection onto the line from our point.
+     // Use this to determine being bound by the ends of our segments.
+     // Use the projection distance to calculate what is considered "near"
   
     //separete our line into ordered components
     float xl = pointA.x;
     float yl = pointA.y;
     float xr = pointB.x;
     float yr = pointB.y;
+
     if ( pointB.x < pointA.x ) {
       xl = pointB.x;
       yl = pointB.y;
@@ -66,8 +64,8 @@ bool Line::IsHovering(float ndcx,float ndcy) {
     float ty = -yl;
 
     //translate our ndc coordinates
-    float nx = ndcx + tx;
-    float ny = ndcy + ty;
+    float nx = wscp.x + tx;
+    float ny = wscp.y + ty;
 
     float m_line =  ( yr - yl ) / ( xr - xl );
     float m_perp = 1.0f/(-m_line);

@@ -20,7 +20,7 @@ class Line : public Interactable {
     //Interactable
     void move(float x,float y);
     void position(float x,float y);
-    bool IsHovering(float,float);
+    bool IsHovering(glm::vec2 wscp);
   private :
     Shader* shader;
     const unsigned int* vao;

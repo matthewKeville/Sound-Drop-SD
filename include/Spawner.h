@@ -4,6 +4,7 @@
 #include "shader.h"
 #include "Ball.h"
 #include "Interactable.h"
+#include <glm/glm.hpp>
 
 #include <glm/glm.hpp>
 
@@ -17,7 +18,7 @@ class Spawner : public Interactable {
     //Interactable
     void move(float x, float y);
     void position(float x,float y);
-    bool IsHovering(float,float);
+    bool IsHovering(glm::vec2 wscp);
   private:
     //opengl buffers main circle
     float* vertices; 

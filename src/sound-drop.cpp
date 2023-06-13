@@ -34,9 +34,14 @@ int windowWidth;                //glfw window dimensions
 int windowHeight;
 GLFWwindow* window;
 
+//viewport 
+const float MAX_VIEWPORT_SCALE = 3.0f;
+const float MIN_VIEWPORT_SCALE = 1.0f;
+float viewportScale = MIN_VIEWPORT_SCALE;
+
 glm::vec4 clearColor{0.0f,0.0f,0.0f,0.0f};
-glm::mat4 projection = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -10.f, 10.0f); //left,right ,bot top , near far
-glm::mat4 view = glm::mat4(1); //under an orthographic projection, view is not relevant as disance doesn't affect image
+glm::mat4 projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
+glm::mat4 view = glm::mat4(1); 
 
 //state
 bool lineDrawing = false;
@@ -44,8 +49,7 @@ bool selected = false;
 bool pausePhysics = false;
 bool muteAudio = false;
 
-double mouseX;                  //glfw window coordinates
-double mouseY;
+glm::vec2 mouse; //glfw window coordinates : (0,windowWidth) x (0,windowHeight)
 
 Shader* lineShader;
 Shader* ballShader;
@@ -68,8 +72,7 @@ unsigned int spawnerVbo;
 float* spawnerVertices; //note float* instead of [], ball resolution can change at runtime
 
 Line* previewLine;
-float previewX = 0;
-float previewY = 0;
+glm::vec2 preview = glm::vec2(0,0);
 
 //balls
 double ballGravity =  -0.0002f;
@@ -98,7 +101,7 @@ unsigned int SAMPLE_BASE_RATE = 0;
 
 const float GLOBAL_MAX_VOLUME = 2;
 const float GLOBAL_MIN_VOLUME = 0;
-const float GLOBAL_DEFAULT_VOLUME = 0.05f;
+const float GLOBAL_DEFAULT_VOLUME = 0.5f;
 const unsigned int MAX_VOICE_COUNT = 255;//1024 is standard max, but library supports 4095 with compilation flag
                                          //yet, compiler will yell if this is above 255 ?
                                                               
@@ -142,8 +145,10 @@ void update_interactable();
 void update_balls();
 //application utilities
 float toDegrees(float radians);
-double mouseXToViewX(double mousex);
-double mouseYToViewY(double mousey);
+
+glm::vec2 mouseToNDC(glm::vec2 mouse); //NDC [-1,1] x [1,1]
+glm::vec2 ndcToWorldCoordinates(glm::vec2 ndc); 
+
 
 
 int main() {
@@ -332,9 +337,9 @@ int main() {
   
   //preview line
   auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
-  previewLine = new Line(lineShader,&lineVao,&lineVbo,previewX,previewY,mouseXToViewX(mouseX),mouseYToViewY(mouseY),semitoneMapper,colorMapper);
+  auto wscp = ndcToWorldCoordinates(mouseToNDC(mouse));
+  previewLine = new Line(lineShader,&lineVao,&lineVbo,preview.x,preview.y,wscp.x,wscp.y,semitoneMapper,colorMapper); //1
 
-  //Spawner(Shader*,Shader*,const unsigned int*,const unsigned int*,float,float,float,unsigned int);
   spawners.push_back(new Spawner(ballShader,ballShader,&spawnerVao,&spawnerVbo,&ballVao,&ballVbo,
         DEFAULT_SPAWN_X,DEFAULT_SPAWN_Y,
         DEFAULT_BASE_SPAWN_FREQUENCY,4.0f));
@@ -454,6 +459,11 @@ int main() {
       ImGui::SliderFloat("Master Volume", &audioSlider, GLOBAL_MIN_VOLUME,GLOBAL_MAX_VOLUME, "%.2f", ImGuiSliderFlags_AlwaysClamp);
     }
 
+    float viewportScaleSlider = viewportScale;
+    if(ImGui::CollapsingHeader("View Scale")) {
+      ImGui::SliderFloat("View Scale", &viewportScaleSlider, MIN_VIEWPORT_SCALE, MAX_VIEWPORT_SCALE, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+    }
+
     int newSaveSlot = selectedSaveSlot;
     bool saveClicked = false;
     bool loadClicked = false;
@@ -503,10 +513,30 @@ int main() {
       scaleIndex = guiSelectedScaleIndex;
       updateScale();
     }
+    
     if ( audioSlider != soloud.getGlobalVolume() ) {
       audioSlider = std::max(GLOBAL_MIN_VOLUME,audioSlider);
       audioSlider = std::min(GLOBAL_MAX_VOLUME,audioSlider);
       soloud.setGlobalVolume(audioSlider);
+    }
+
+    if ( viewportScaleSlider != viewportScale ) {
+      viewportScale = std::max(MIN_VIEWPORT_SCALE,viewportScaleSlider);
+      viewportScale = std::min(MAX_VIEWPORT_SCALE,viewportScaleSlider);
+      //update projection
+      projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
+
+      //update projection uniforms
+      lineShader->use();
+
+      int projectionLocLine = glGetUniformLocation(lineShader->ID, "Projection"); 
+      glUniformMatrix4fv(projectionLocLine, 1, GL_FALSE, glm::value_ptr(projection));
+
+      ballShader->use();
+
+      int projectionLocBall = glGetUniformLocation(ballShader->ID, "Projection"); 
+      glUniformMatrix4fv(projectionLocBall, 1, GL_FALSE, glm::value_ptr(projection));
+
     }
 
     if ( saveClicked ) {
@@ -635,8 +665,9 @@ void processInput(GLFWwindow* window) {
   ///////////////////////////////
   if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
     if (!S_PRESSED) {
-      if (!selected && hovered == nullptr) {
-        spawners.push_back(new Spawner(ballShader,ballShader,&spawnerVao,&spawnerVbo,&ballVao,&ballVbo,mouseXToViewX(mouseX),mouseYToViewY(mouseY),
+      if (!selected && hovered == nullptr) { 
+        auto wscp = ndcToWorldCoordinates(mouseToNDC(mouse));
+        spawners.push_back(new Spawner(ballShader,ballShader,&spawnerVao,&spawnerVbo,&ballVao,&ballVbo,wscp.x,wscp.y,
           DEFAULT_BASE_SPAWN_FREQUENCY,DEFAULT_SPAWN_SCALE));
       }
       S_PRESSED = true;
@@ -730,8 +761,8 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         if ( !lineDrawing ) {
 
           //map mouse coordinates to view plane
-          previewX = mouseXToViewX(mouseX);
-          previewY = mouseYToViewY(mouseY);
+          preview = ndcToWorldCoordinates(mouseToNDC(mouse));
+
           lineDrawing = true;
         } else { 
 
@@ -740,7 +771,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
           
           //create a Line instance of this line
           auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
-          lines.push_back(new Line(lineShader,&lineVao,&lineVbo,previewX,previewY,xPos,yPos,semitoneMapper,colorMapper));
+          lines.push_back(new Line(lineShader,&lineVao,&lineVbo,preview.x,preview.y,xPos,yPos,semitoneMapper,colorMapper));
           lineDrawing = false;
         }
 
@@ -762,8 +793,8 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
   (void) window;//suppress -Wunused-paramter
-  mouseX = xpos;
-  mouseY = ypos;
+  mouse.x = xpos;
+  mouse.y = ypos;
 }
 
 
@@ -773,35 +804,40 @@ void drawLinePreview(){
   constrainedPreviewLineTerminal(xPos,yPos);
 
   auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
-  previewLine->updatePoints(glm::vec2(previewX,previewY),glm::vec2(xPos,yPos));
+  previewLine->updatePoints(glm::vec2(preview.x,preview.y),glm::vec2(xPos,yPos));
   previewLine->calculateToneAndColor(semitoneMapper,colorMapper);
   previewLine->draw();
 }
 
 /* 
  * place the final coordinate of the preview line after being subjected
- * to the MAX and MIN constraints for lines 
+ * to the MAX and MIN constraints for lines (these apply to world space)
  */
 void constrainedPreviewLineTerminal(float& xPos,float& yPos) {
 
-  xPos = mouseXToViewX(mouseX);
-  yPos = mouseYToViewY(mouseY);
+  auto wscp = ndcToWorldCoordinates(mouseToNDC(mouse));
 
   //constrain the line between our bounds
   
-  float vecX = xPos-previewX;
-  float vecY = yPos-previewY;
-  float distance = sqrt( pow(vecX,2) + pow(vecY,2) );
+  auto vec = wscp - preview;
 
-  if ( distance > keville::util::MAX_LINE_WIDTH ) {
-    xPos = previewX + (vecX/distance)*keville::util::MAX_LINE_WIDTH;
-    yPos = previewY + (vecY/distance)*keville::util::MAX_LINE_WIDTH;
+  float norm = sqrt(glm::dot(vec,vec));
+  glm::vec2 Pos = preview;
+
+  if ( norm > keville::util::MAX_LINE_WIDTH ) {
+    Pos += (vec/norm * keville::util::MAX_LINE_WIDTH); 
   }
 
-  if ( distance < keville::util::MIN_LINE_WIDTH ) {
-    xPos = previewX + (vecX/distance)*keville::util::MIN_LINE_WIDTH;
-    yPos = previewY + (vecY/distance)*keville::util::MIN_LINE_WIDTH;
+  if ( norm < keville::util::MIN_LINE_WIDTH ) {
+    Pos += (vec/norm * keville::util::MIN_LINE_WIDTH); 
   }
+
+  if ( norm > keville::util::MIN_LINE_WIDTH && norm < keville::util::MAX_LINE_WIDTH ) {
+    Pos += vec;
+  }
+
+  xPos = Pos.x;
+  yPos = Pos.y;
 
 }
 
@@ -1002,16 +1038,6 @@ float toDegrees(float radians) {
   return radians * 360.0f / (2 * M_PI);
 }
 
-//transform mouseX to a view plane coordinate (-1.0,1.0)
-double mouseXToViewX(double mousex) {
-  return (2.0f  * mousex / (double) windowWidth  ) - 1.0f;
-}
-
-//transform mouseY to a view plane coordinate (-1.0,1.0)
-double mouseYToViewY(double mousey) {
-  return (-2.0f * mousey / (double) windowHeight ) + 1.0;
-}
-
 void play_bounce_audio(Line* lp) {
   int handle = soloud.play(*sample);
   int playback_rate = keville::util::semitone_adjusted_rate(SAMPLE_BASE_RATE,lp->semitone);
@@ -1021,14 +1047,17 @@ void play_bounce_audio(Line* lp) {
 //return the hovered interactable if any
 Interactable* detect_hover() {
 
+  //glm::vec2 mcws = ndcToWorldCoordinates(mouseToNDC(glm::vec2(mouseX,mouseY)));
+  glm::vec2 mcws = ndcToWorldCoordinates(mouseToNDC(mouse));
+  
   for ( auto sp : spawners ) {
-    if ( sp->IsHovering(mouseXToViewX(mouseX),mouseYToViewY(mouseY)) ) {
+    if ( sp->IsHovering(mcws)) {
       return sp;
     }
   }
 
   for ( auto lp : lines ) {
-    if ( lp->IsHovering(mouseXToViewX(mouseX),mouseYToViewY(mouseY)) ) {
+    if ( lp->IsHovering(mcws)) {
       return lp;
     }
   }
@@ -1042,8 +1071,9 @@ void update_interactable() {
   // but I was having difficulty implementing smooth movement
   // when considered the dynamics between rendering a the glfw calculation of position and 
   // the callbacks. This is the corect, not jank way. We set the position as a workaround.
-  interactable->position(mouseXToViewX(mouseX),mouseYToViewY(mouseY));
-
+  //auto mcws = ndcToWorldCoordinates(mouseToNDC(glm::vec2(mouseX,mouseY)));
+  auto mcws = ndcToWorldCoordinates(mouseToNDC(mouse));
+  interactable->position(mcws.x,mcws.y);
 }
 
 void update_balls() {
@@ -1150,4 +1180,19 @@ void update_balls() {
 
   }
 
+}
+
+//what world space coordinate does this map to?
+glm::vec2 ndcToWorldCoordinates(glm::vec2 ndc) {
+  //undo ortho proj (scaling)
+  glm::vec2 p = glm::vec2(ndc.x*viewportScale,ndc.y*viewportScale);
+  //undo translation
+  return p;
+}
+
+
+glm::vec2 mouseToNDC(glm::vec2 mouse) {
+  return glm::vec2(
+      (2.0f  * mouse.x / (double) windowWidth ) - 1.0f,
+      (-2.0f * mouse.y / (double) windowHeight) + 1.0f);
 }
