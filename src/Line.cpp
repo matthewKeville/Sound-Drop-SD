@@ -35,8 +35,8 @@ void Line::draw() {
   glBindBuffer(GL_ARRAY_BUFFER,*this->vbo);
   glBindVertexArray(*this->vao); 
 
-  glLineWidth(6.0f);
-  glDrawArrays(GL_LINES, 0, 2);
+  //glLineWidth(6.0f);
+  glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 bool Line::IsHovering(glm::vec2 wscp) {
@@ -126,16 +126,24 @@ glm::vec2 Line::getPosition() {
 
 void Line::updateModelMatrix() {
   //derive a model matrix based on the points of our line segment
+  //this line model matrix performs anistropic scaling in the x dimension to
+  //achieve line 'length'
   glm::vec2 diff2 = this->pointB - this->pointA;
   glm::vec3 diff = glm::vec3(diff2.x,diff2.y,0);
 
   float magnitude = sqrt(glm::dot(diff,diff));
   float theta = atan2(diff.y,diff.x);
 
+  //glm notation is confusing. Our resultant model matrix looks like this
+  // M = T R S 
+  // that is, order in which glm concatenates matrices is the reverse of the standard matrix notation.
+  // or, the innermost transformation comes last in the composition
+
   this->model = glm::mat4(1.0f);
   this->model = glm::translate(this->model,glm::vec3(pointA.x,pointA.y,0));   //translate into place
-  this->model = glm::scale(this->model,magnitude * glm::vec3(1));
   this->model = glm::rotate(this->model, theta, glm::vec3(0,0,1)); //we rotate by the angle of the diff vector
+  this->model = glm::scale(this->model,glm::vec3(magnitude,1,1));
+  //this->model = glm::scale(this->model,magnitude * glm::vec3(1));
 }
 
 void Line::calculateToneAndColor(

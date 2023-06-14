@@ -5,6 +5,7 @@
 #include <thread>
 #include <tuple> 
 #include <functional>
+#include <algorithm> //std::copy
 //Third Party
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -58,10 +59,14 @@ Shader* ballShader;
 
 //lines
 std::vector<Line*> lines;
+const float MIN_LINE_THICKNESS=0.001f;
+const float MAX_LINE_THICKNESS=0.01f;
+float lineThickness=0.005f;
+glm::mat4 thicken = glm::scale(glm::mat4(1),glm::vec3(1,lineThickness,1));
 //line gl vars
 unsigned int lineVao;
 unsigned int lineVbo;
-float lineVertices[6] {0}; 
+float lineVertices[18] {0}; 
 
 //ball gl vars
 unsigned int ballVao;
@@ -275,8 +280,23 @@ int main() {
   ballShader = new Shader("shaders/ball.vs","shaders/line.fs");
 
   // Line Rendering Vars
+  float lineVertexData[18] = {
+    0.f,1.0f,0.f,
+    1.f,1.0f,0.f,
+    1.f,-1.0f,0.f,
 
-  lineVertices[3] = 1.0f; // {0 0 0 1 0 0} 
+    1.f,-1.0f,0.f,
+    0.f,-1.0f,0.f,
+    0.f,1.0f,0.f,
+  };
+  /*
+   * a square center vertically on the x axis 
+   * that is aligned with the y axis
+   *
+   */
+  std::copy(lineVertexData,lineVertexData+18,lineVertices);
+
+
   glGenVertexArrays(1, &lineVao);
   glGenBuffers(1,&lineVbo);
   //assemble vertex array
@@ -287,10 +307,10 @@ int main() {
   glBindVertexArray(0);
   //initialize vertex buffer
   glBindBuffer(GL_ARRAY_BUFFER, lineVbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 2 * 3, lineVertices, GL_STATIC_DRAW);//stores 2 lines
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 3, lineVertices, GL_STATIC_DRAW);
 
   // Balll Rendering Vars
-  //
+  
   int ballVertexTotal;
   ballVertices =  keville::util::generate_regular_polygon_vertices(keville::util::CIRCLE_SIDES,1,ballVertexTotal);
   //generate buffers
@@ -332,8 +352,11 @@ int main() {
   lineShader->use();
   int projectionLocLine = glGetUniformLocation(lineShader->ID, "Projection"); 
   int viewLocLine = glGetUniformLocation(lineShader->ID, "View"); 
+  int thickenLocLine = glGetUniformLocation(lineShader->ID, "Thicken"); 
+
   glUniformMatrix4fv(projectionLocLine, 1, GL_FALSE, glm::value_ptr(projection));
   glUniformMatrix4fv(viewLocLine, 1, GL_FALSE, glm::value_ptr(view));
+  glUniformMatrix4fv(thickenLocLine, 1, GL_FALSE, glm::value_ptr(thicken));
 
   ballShader->use();
   int projectionLocBall = glGetUniformLocation(ballShader->ID, "Projection"); 
@@ -467,11 +490,13 @@ int main() {
 
     float viewportScaleSlider = viewportScale;
     glm::vec2 viewportCenterSlider = viewportCenter;
+    float lineThicknessSlider = lineThickness;
     bool resetViewClicked = false;
     if(ImGui::CollapsingHeader("View")) {
       ImGui::SliderFloat("View Scale", &viewportScaleSlider, MIN_VIEWPORT_SCALE, MAX_VIEWPORT_SCALE, "%.2f", ImGuiSliderFlags_AlwaysClamp);
       ImGui::SliderFloat("View x", &viewportCenterSlider.x, -viewportCenterRange(), viewportCenterRange(), "%.2f", ImGuiSliderFlags_AlwaysClamp);
       ImGui::SliderFloat("View y", &viewportCenterSlider.y, -viewportCenterRange(), viewportCenterRange(), "%.2f", ImGuiSliderFlags_AlwaysClamp);
+      ImGui::SliderFloat("Line Thickness", &lineThicknessSlider, MIN_LINE_THICKNESS, MAX_LINE_THICKNESS, "%.4f", ImGuiSliderFlags_AlwaysClamp);
       if(ImGui::Button("Reset")) {
         resetViewClicked = true;
       }
@@ -560,10 +585,22 @@ int main() {
       //update matrix
       viewportCenter = viewportCenterSlider;
       view = glm::translate(glm::mat4(1),glm::vec3(viewportCenter.x,viewportCenter.y,0));
-
       updateView();
 
     }
+
+    if ( lineThickness != lineThicknessSlider ) {
+      lineShader->use();
+      lineThickness = std::max(MIN_LINE_THICKNESS,lineThicknessSlider);
+      lineThickness = std::min(MAX_LINE_THICKNESS,lineThicknessSlider);
+      //update Thicken matrix
+      thicken = glm::scale(glm::mat4(1),glm::vec3(1,lineThickness,1));
+      //update uniform
+      int thickenLocLine = glGetUniformLocation(lineShader->ID, "Thicken"); 
+      glUniformMatrix4fv(thickenLocLine, 1, GL_FALSE, glm::value_ptr(thicken));
+    }
+
+
 
     if ( resetViewClicked ) {
       std::cout << " resetting viewport " << std::endl;
@@ -967,88 +1004,6 @@ bool testLineSegmentIntersection(float xa0,float ya0,float xaf,float yaf,float x
   *soly = 0;
   return false;
 }
-
-/*
- * This aproach utilizes matrix theory and models the problem of intersection with the matrix equation Ax = b,
- * our point of intersection is precisely Ainv b, which we then check the bounds of.
- *
- * To utilize the matrix equation we need to find a representation of our lines in general form.
- * The approach here is to use the point slope form to find the coefficients of the general form.
- * When the slope of our line is undefined, we skip this since the general form is trivial as x = c
- *
- * UPDATE : This approach suffers the same fundamental issue above, when vertical lines are present , the 'system' is inconsistent
- * the determinant is 0 and the solution does not exist.
- *
- */
-/*
-bool testLineSegmentIntersection(float x00,float y00,float x0f,float y0f,float x10,float y10,float x1f,float y1f,float* solx, float* soly) {
-
-  //find the coefficients of general form for lines A and B
-
-  // a slope
-  float d0x = (x0f - x00);
-  float d0y = (y0f - y00);
-  float m0;
-
-  // general form coefficients Ax + By + C = 0
-  float a0 = 0;
-  float b0 = 0;
-  float c0 = 0;
-
-  if (d0x) { 
-    m0  = d0y / d0x;
-    a0 = -1*m0;
-    b0 = 1;
-    c0 = m0*x00 + y00;
-  } else { 
-    //vertical line
-    c0 = x00; 
-  }
-
-  //b slope
-  float d1x = (x1f - x10);
-  float d1y = (y1f - y10);
-  float m1;
-
-  // general form coefficients Ax + By + C = 0
-  float a1 = 0;
-  float b1 = 0;
-  float c1 = 0;
-
-  if (d1x) { 
-    m1  = d1y / d1x;
-    a1 = -1*m1;
-    b1 = 1;
-    c1 = m1*x10 + y10;
-  } else {
-    //vertical line
-    c1 = x10;
-  }
-
-  // calculate the determinant of matrix A
-  float determinant = (a0 * b1) - (b0 * a1);
-
-  float solvex = (c1*b0) - (c0*b1) / determinant;
-  float solvey = (c0*a1) - (c1*a0) / determinant;
-
-  //is solution in the bounds of these line segments?
-  float xmin0 = std::min(x00,x0f);
-  float xmax0 = std::max(x00,x0f);
-  float xmin1 = std::min(x10,x1f);
-  float xmax1 = std::max(x10,x1f);
-
-  if ( solvex > xmin0 && solvex < xmax0
-        && solvex > xmin1 && solvex < xmax1 ) {
-    *solx = solvex;
-    *soly = solvey;
-    return true;
-  }
-
-  solx = 0;
-  soly = 0;
-  return false;
-}
-*/
 
 void updateSample() {
   std::string name = std::get<0>(sampleData[sampleIndex]);
