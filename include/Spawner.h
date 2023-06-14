@@ -19,6 +19,7 @@ class Spawner : public Interactable {
     void move(float x, float y);
     void position(float x,float y);
     bool IsHovering(glm::vec2 wscp);
+    glm::vec2 getPosition();
   private:
     //opengl buffers main circle
     float* vertices; 

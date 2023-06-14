@@ -92,6 +92,12 @@ std::vector<Spawner*> spawners;
 //Interactable (the selected entity)
 Interactable* hovered      = nullptr;
 Interactable* interactable = nullptr; 
+/* 
+ * when an interactable is set, 
+ * this vector points to the interacted object
+ * from the point clicked (in world space)                                  
+ */
+glm::vec2 interactableCenterDisplacement = glm::vec2(0,0); 
 
 //Audio
 SoLoud::Soloud soloud;
@@ -816,6 +822,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 
         selected = true;
         interactable = hovered;
+        interactableCenterDisplacement = ndcToWorldCoordinates(mouseToNDC(mouse)) - interactable->getPosition();
 
       } else if ( selected ) {
 
@@ -1100,11 +1107,7 @@ Interactable* detect_hover() {
 //the interactable gets moved by the user when selected
 void update_interactable() {
   if ( !selected ) return;
-  // this should be interactable->move(dx,dy);
-  // but I was having difficulty implementing smooth movement
-  // when considered the dynamics between rendering a the glfw calculation of position and 
-  // the callbacks. This is the corect, not jank way. We set the position as a workaround.
-  auto mcws = ndcToWorldCoordinates(mouseToNDC(mouse));
+  auto mcws = ndcToWorldCoordinates(mouseToNDC(mouse)) - interactableCenterDisplacement;
   interactable->position(mcws.x,mcws.y);
 }
 
@@ -1135,7 +1138,7 @@ void update_balls() {
 
     //collision with line?
     for ( auto lp : lines ) {
-      auto [ pointA , pointB ] = lp->getPosition();
+      auto [ pointA , pointB ] = lp->getPoints();
       float solx;
       float soly;
 

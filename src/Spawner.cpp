@@ -110,6 +110,10 @@ void Spawner::updateModelMatrix() {
   this->model = glm::scale(this->model,this->radius * glm::vec3(1));
 }
 
+glm::vec2 Spawner::getPosition() {
+  return this->center;
+}
+
 
 
 

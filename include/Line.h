@@ -15,12 +15,13 @@ class Line : public Interactable {
     void draw();
     void calculateToneAndColor(std::function<int(float)>,
         std::function<std::tuple<float,float,float>(int)>);
-    std::tuple<glm::vec2,glm::vec2> getPosition();
+    std::tuple<glm::vec2,glm::vec2> getPoints();
     void updatePoints(glm::vec2,glm::vec2);
     //Interactable
     void move(float x,float y);
     void position(float x,float y);
     bool IsHovering(glm::vec2 wscp);
+    glm::vec2 getPosition();
   private :
     Shader* shader;
     const unsigned int* vao;

@@ -114,10 +114,14 @@ void Line::updatePoints(glm::vec2 newPointA,glm::vec2 newPointB) {
   updateModelMatrix();
 }
 
-std::tuple<glm::vec2,glm::vec2> Line::getPosition() {
+std::tuple<glm::vec2,glm::vec2> Line::getPoints() {
   return {
     pointA, pointB
   };
+}
+
+glm::vec2 Line::getPosition() {
+  return this->pointA;
 }
 
 void Line::updateModelMatrix() {
