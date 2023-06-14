@@ -86,7 +86,7 @@ bool Line::IsHovering(glm::vec2 wscp) {
     float mid_point_distance = sqrt(pow(mpx-xsol,2) + pow(mpy-ysol,2));
     bool withinLineSegments = mid_point_distance < segment_length/2.0f;
 
-    float epsilon = 0.01f; //how far in perpendicular distance the point can be
+    float epsilon = 0.05f; //0.01 gets frustrated with MAX_VIEWPORT_SCALE 5.0f
     float projection_distance = sqrt( pow(nx - xsol,2) + pow(ny - ysol,2));
     bool withinEpsilon = projection_distance < epsilon;
 

@@ -1078,6 +1078,10 @@ float toDegrees(float radians) {
 
 void play_bounce_audio(Line* lp) {
   int handle = soloud.play(*sample);
+  float pan = lp->getPosition().x / MAX_VIEWPORT_SCALE;
+  pan = std::min(pan,1.0f);
+  pan = std::max(pan,-1.f);
+  soloud.setPan(handle,pan);
   int playback_rate = keville::util::semitone_adjusted_rate(SAMPLE_BASE_RATE,lp->semitone);
   soloud.setSamplerate(handle,playback_rate);
 }
