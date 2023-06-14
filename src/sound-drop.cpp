@@ -151,6 +151,9 @@ glm::vec2 mouseToNDC(glm::vec2 mouse); //NDC [-1,1] x [1,1]
 glm::vec2 ndcToWorldCoordinates(glm::vec2 ndc); 
 float viewportCenterRange();
 
+void updateView();
+void updateProjection();
+
 int main() {
 
   //initialize soloud
@@ -526,24 +529,20 @@ int main() {
       soloud.setGlobalVolume(audioSlider);
     }
 
+    // View Port
+
     bool scaleChanged = false;
     if ( viewportScaleSlider != viewportScale ) {
+
       scaleChanged = true;
+
       viewportScale = std::max(MIN_VIEWPORT_SCALE,viewportScaleSlider);
       viewportScale = std::min(MAX_VIEWPORT_SCALE,viewportScaleSlider);
+
       //update projection
       projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
 
-      //update projection uniforms
-      lineShader->use();
-
-      int projectionLocLine = glGetUniformLocation(lineShader->ID, "Projection"); 
-      glUniformMatrix4fv(projectionLocLine, 1, GL_FALSE, glm::value_ptr(projection));
-
-      ballShader->use();
-
-      int projectionLocBall = glGetUniformLocation(ballShader->ID, "Projection"); 
-      glUniformMatrix4fv(projectionLocBall, 1, GL_FALSE, glm::value_ptr(projection));
+      updateProjection();
 
     }
 
@@ -559,16 +558,7 @@ int main() {
       viewportCenter = viewportCenterSlider;
       view = glm::translate(glm::mat4(1),glm::vec3(viewportCenter.x,viewportCenter.y,0));
 
-      //update view uniforms
-      lineShader->use();
-
-      int viewLocLine = glGetUniformLocation(lineShader->ID, "View"); 
-      glUniformMatrix4fv(viewLocLine, 1, GL_FALSE, glm::value_ptr(view));
-
-      ballShader->use();
-
-      int viewLocBall = glGetUniformLocation(ballShader->ID, "View"); 
-      glUniformMatrix4fv(viewLocBall, 1, GL_FALSE, glm::value_ptr(view));
+      updateView();
 
     }
 
@@ -577,6 +567,10 @@ int main() {
       viewportCenter.x = 0;
       viewportCenter.y = 0;
       viewportScale = 1.0f;
+
+      //update projection
+      projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
+      updateProjection();
     }
 
     if ( saveClicked ) {
@@ -1240,4 +1234,35 @@ glm::vec2 mouseToNDC(glm::vec2 mouse) {
 float viewportCenterRange() {
   //return (MAX_VIEWPORT_SCALE - viewportScale)/2.0f;
   return (MAX_VIEWPORT_SCALE - viewportScale);
+}
+
+void updateView() {
+
+  //update view uniforms
+  lineShader->use();
+
+  int viewLocLine = glGetUniformLocation(lineShader->ID, "View"); 
+  glUniformMatrix4fv(viewLocLine, 1, GL_FALSE, glm::value_ptr(view));
+
+  ballShader->use();
+
+  int viewLocBall = glGetUniformLocation(ballShader->ID, "View"); 
+  glUniformMatrix4fv(viewLocBall, 1, GL_FALSE, glm::value_ptr(view));
+
+}
+
+void updateProjection() {
+
+
+  //update projection uniforms
+  lineShader->use();
+
+  int projectionLocLine = glGetUniformLocation(lineShader->ID, "Projection"); 
+  glUniformMatrix4fv(projectionLocLine, 1, GL_FALSE, glm::value_ptr(projection));
+
+  ballShader->use();
+
+  int projectionLocBall = glGetUniformLocation(ballShader->ID, "Projection"); 
+  glUniformMatrix4fv(projectionLocBall, 1, GL_FALSE, glm::value_ptr(projection));
+
 }
