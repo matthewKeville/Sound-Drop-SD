@@ -38,6 +38,8 @@ GLFWwindow* window;
 const float MAX_VIEWPORT_SCALE = 3.0f;
 const float MIN_VIEWPORT_SCALE = 1.0f;
 float viewportScale = MIN_VIEWPORT_SCALE;
+glm::vec2 viewportCenter = glm::vec2(0,0);
+glm::vec2 preview = viewportCenter;
 
 glm::vec4 clearColor{0.0f,0.0f,0.0f,0.0f};
 glm::mat4 projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
@@ -72,7 +74,6 @@ unsigned int spawnerVbo;
 float* spawnerVertices; //note float* instead of [], ball resolution can change at runtime
 
 Line* previewLine;
-glm::vec2 preview = glm::vec2(0,0);
 
 //balls
 double ballGravity =  -0.0002f;
@@ -148,8 +149,7 @@ float toDegrees(float radians);
 
 glm::vec2 mouseToNDC(glm::vec2 mouse); //NDC [-1,1] x [1,1]
 glm::vec2 ndcToWorldCoordinates(glm::vec2 ndc); 
-
-
+float viewportCenterRange();
 
 int main() {
 
@@ -460,8 +460,15 @@ int main() {
     }
 
     float viewportScaleSlider = viewportScale;
-    if(ImGui::CollapsingHeader("View Scale")) {
+    glm::vec2 viewportCenterSlider = viewportCenter;
+    bool resetViewClicked = false;
+    if(ImGui::CollapsingHeader("View")) {
       ImGui::SliderFloat("View Scale", &viewportScaleSlider, MIN_VIEWPORT_SCALE, MAX_VIEWPORT_SCALE, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+      ImGui::SliderFloat("View x", &viewportCenterSlider.x, -viewportCenterRange(), viewportCenterRange(), "%.2f", ImGuiSliderFlags_AlwaysClamp);
+      ImGui::SliderFloat("View y", &viewportCenterSlider.y, -viewportCenterRange(), viewportCenterRange(), "%.2f", ImGuiSliderFlags_AlwaysClamp);
+      if(ImGui::Button("Reset")) {
+        resetViewClicked = true;
+      }
     }
 
     int newSaveSlot = selectedSaveSlot;
@@ -489,7 +496,6 @@ int main() {
       ImGui::Text("Active Voices : %u", soloud.getActiveVoiceCount());
       ImGui::Text("Balls : %li", balls.size());
    }
-
 
     ImGui::End();
 
@@ -520,7 +526,9 @@ int main() {
       soloud.setGlobalVolume(audioSlider);
     }
 
+    bool scaleChanged = false;
     if ( viewportScaleSlider != viewportScale ) {
+      scaleChanged = true;
       viewportScale = std::max(MIN_VIEWPORT_SCALE,viewportScaleSlider);
       viewportScale = std::min(MAX_VIEWPORT_SCALE,viewportScaleSlider);
       //update projection
@@ -537,6 +545,38 @@ int main() {
       int projectionLocBall = glGetUniformLocation(ballShader->ID, "Projection"); 
       glUniformMatrix4fv(projectionLocBall, 1, GL_FALSE, glm::value_ptr(projection));
 
+    }
+
+    if ( scaleChanged || viewportCenterSlider != viewportCenter ) {
+
+      //scale changes require checking of the existing view port location
+      viewportCenterSlider.x = std::max(-viewportCenterRange(),viewportCenterSlider.x);
+      viewportCenterSlider.x = std::min(viewportCenterRange(),viewportCenterSlider.x);
+      viewportCenterSlider.y = std::max(-viewportCenterRange(),viewportCenterSlider.y);
+      viewportCenterSlider.y = std::min(viewportCenterRange(),viewportCenterSlider.y);
+
+      //update matrix
+      viewportCenter = viewportCenterSlider;
+      view = glm::translate(glm::mat4(1),glm::vec3(viewportCenter.x,viewportCenter.y,0));
+
+      //update view uniforms
+      lineShader->use();
+
+      int viewLocLine = glGetUniformLocation(lineShader->ID, "View"); 
+      glUniformMatrix4fv(viewLocLine, 1, GL_FALSE, glm::value_ptr(view));
+
+      ballShader->use();
+
+      int viewLocBall = glGetUniformLocation(ballShader->ID, "View"); 
+      glUniformMatrix4fv(viewLocBall, 1, GL_FALSE, glm::value_ptr(view));
+
+    }
+
+    if ( resetViewClicked ) {
+      std::cout << " resetting viewport " << std::endl;
+      viewportCenter.x = 0;
+      viewportCenter.y = 0;
+      viewportScale = 1.0f;
     }
 
     if ( saveClicked ) {
@@ -1047,7 +1087,6 @@ void play_bounce_audio(Line* lp) {
 //return the hovered interactable if any
 Interactable* detect_hover() {
 
-  //glm::vec2 mcws = ndcToWorldCoordinates(mouseToNDC(glm::vec2(mouseX,mouseY)));
   glm::vec2 mcws = ndcToWorldCoordinates(mouseToNDC(mouse));
   
   for ( auto sp : spawners ) {
@@ -1071,7 +1110,6 @@ void update_interactable() {
   // but I was having difficulty implementing smooth movement
   // when considered the dynamics between rendering a the glfw calculation of position and 
   // the callbacks. This is the corect, not jank way. We set the position as a workaround.
-  //auto mcws = ndcToWorldCoordinates(mouseToNDC(glm::vec2(mouseX,mouseY)));
   auto mcws = ndcToWorldCoordinates(mouseToNDC(mouse));
   interactable->position(mcws.x,mcws.y);
 }
@@ -1187,7 +1225,7 @@ glm::vec2 ndcToWorldCoordinates(glm::vec2 ndc) {
   //undo ortho proj (scaling)
   glm::vec2 p = glm::vec2(ndc.x*viewportScale,ndc.y*viewportScale);
   //undo translation
-  return p;
+  return p - viewportCenter;
 }
 
 
@@ -1195,4 +1233,11 @@ glm::vec2 mouseToNDC(glm::vec2 mouse) {
   return glm::vec2(
       (2.0f  * mouse.x / (double) windowWidth ) - 1.0f,
       (-2.0f * mouse.y / (double) windowHeight) + 1.0f);
+}
+
+//returns the absoulte distance from the origin in the x or y direction that
+//the viewport can be centered at given the current scale.
+float viewportCenterRange() {
+  //return (MAX_VIEWPORT_SCALE - viewportScale)/2.0f;
+  return (MAX_VIEWPORT_SCALE - viewportScale);
 }
