@@ -54,7 +54,7 @@ Ball* Spawner::spawn(float currentTime) {
 
   float wavelength = (1.f / this->baseFrequency ); //is this a safe cast?
   float quantum = wavelength/this->scale;
-  float epsilon = 0.01f;  //10ms
+  float epsilon = 0.05f;  //50ms  | note : .01 or (10ms) caused noticeable missed quantums at fixed intervals
 
   float now = currentTime / quantum;
   float leftQuantum = floor(now);

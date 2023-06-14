@@ -341,9 +341,6 @@ int main() {
   glUniformMatrix4fv(projectionLocBall, 1, GL_FALSE, glm::value_ptr(projection));
   glUniformMatrix4fv(viewLocBall, 1, GL_FALSE, glm::value_ptr(view));
 
-  std::cout << " Projection " << projection << std::endl;
-  std::cout << " View " << view << std::endl;
-  
   //preview line
   auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
   auto wscp = ndcToWorldCoordinates(mouseToNDC(mouse));
@@ -1204,11 +1201,9 @@ void update_balls() {
     bp->setVelocity(velocityFinal);
     bp->setPosition(centerFinal);
 
-    //if ball is outside a circle of radius 5 , delete
-    if (sqrt(glm::dot(bp->getPosition(),bp->getPosition())) > 5.0) { 
+    if (bp->getPosition().y < -MAX_VIEWPORT_SCALE) { 
       delete bp;
       itty = balls.erase(itty);
-      std::cout << "deleting" << std::endl;
     } else {
       itty++;
     }
