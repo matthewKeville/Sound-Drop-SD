@@ -4,16 +4,7 @@
 #include "Spawner.h"
 
 void SaveState::save(std::vector<Line*>& lines ,std::vector<Spawner*>& spawners) {
-  //delete pointed to lines
-  for ( auto lp : this->lines ) {
-    delete lp;
-  }
-  //delete pointed to spawners
-  for ( auto sp : this->spawners ) {
-    delete sp;
-  }
-  this->lines.clear();
-  this->spawners.clear();
+  deleteLocal();
   //for each line in lines we need a true copy of the line
   for ( auto lp : lines ) {
     Line* nlp = new Line {*lp};
@@ -48,5 +39,24 @@ void SaveState::load(std::vector<Line*>& liveLines ,std::vector<Spawner*>& liveS
     liveSpawners.push_back(nsp);
   }
 
+}
+
+void SaveState::deleteLocal() {
+  //delete pointed to lines
+  for ( auto lp : this->lines ) {
+    delete lp;
+  }
+  //delete pointed to spawners
+  for ( auto sp : this->spawners ) {
+    delete sp;
+  }
+  this->lines.clear();
+  this->spawners.clear();
+}
+
+
+SaveState::~SaveState() {
+  deleteLocal();
+  std::cout << " deleting SaveState " << std::endl;
 }
 

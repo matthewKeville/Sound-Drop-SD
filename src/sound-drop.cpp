@@ -28,6 +28,7 @@
 #include "Spawner.h"
 #include "Interactable.h"
 #include "SaveState.h"
+#include "StateStack.h"
 
 const int MAX_LINES = 50;
 const int MAX_BALLS = 300; 
@@ -124,6 +125,9 @@ const unsigned int NUM_SAVE_SLOTS = 3;
 int selectedSaveSlot = 0;
 SaveState saveSlots[NUM_SAVE_SLOTS];
 
+StateStack stateStack;
+
+
 //sim states
 bool lineDrawing = false;
 bool selected = false;
@@ -155,11 +159,17 @@ void update_interactable();
 void update_balls();
 void updateView();
 void updateProjection();
+
+void record();
+void undo();
+void redo();
+
 //application utilities
 float toDegrees(float radians);
 glm::vec2 mouseToNDC(glm::vec2 mouse); //NDC [-1,1] x [1,1]
 glm::vec2 ndcToWorldCoordinates(glm::vec2 ndc); 
 float viewportCenterRange();
+
 
 int main() {
 
@@ -856,8 +866,6 @@ void processInput(GLFWwindow* window) {
     }
 
     std::cout << "Clearing Entities" << std::endl;
-
-
   } 
 
   ///////////////////////////////
@@ -923,6 +931,20 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         selected = false;
         interactable = nullptr;
       }
+    }
+
+    ///////////
+    //undo redo
+    ///////////
+    
+    if (button == GLFW_MOUSE_BUTTON_4 && action == GLFW_PRESS) {
+      std::cout << " undo " << std::endl;
+      undo();
+    }
+
+    if (button == GLFW_MOUSE_BUTTON_5 && action == GLFW_PRESS) {
+      std::cout << " redo " << std::endl;
+      redo();
     }
 }
 
@@ -1294,3 +1316,26 @@ void updateProjection() {
   glUniformMatrix4fv(projectionLocDigit, 1, GL_FALSE, glm::value_ptr(projection));
 
 }
+
+void record() 
+{
+  SaveState* now = new SaveState();
+  now->save(lines,spawners);
+  stateStack.Record(now);
+}
+
+void undo() {
+  stateStack.Back();
+  if ( stateStack.Current() == nullptr ) {
+    return;
+  }
+  stateStack.Current()->load(lines,spawners);
+};
+
+void redo() {
+  stateStack.Forward();
+  if ( stateStack.Current() == nullptr ) {
+    return;
+  }
+  stateStack.Current()->load(lines,spawners);
+};

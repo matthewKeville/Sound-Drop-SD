@@ -124,3 +124,11 @@ time 1686860123
 old [description:"Add Background Music" entry:"1686858666" modified:"1686858666" status:"pending" uuid:"1f349620-28b7-458a-b4b0-18dc23bcfa81"]
 new [description:"Add Background Music" entry:"1686858666" modified:"1686860123" priority:"H" status:"pending" uuid:"1f349620-28b7-458a-b4b0-18dc23bcfa81"]
 ---
+time 1686861324
+old [description:"Add Background Music" entry:"1686858666" modified:"1686860123" priority:"H" status:"pending" uuid:"1f349620-28b7-458a-b4b0-18dc23bcfa81"]
+new [annotation_1686861223:"Background music was implemented, but it didn't seem to fit with the project aesthetic" description:"Add Background Music &open;Scrapped&close;" entry:"1686858666" modified:"1686861324" priority:"H" status:"pending" uuid:"1f349620-28b7-458a-b4b0-18dc23bcfa81"]
+---
+time 1686861328
+old [annotation_1686861223:"Background music was implemented, but it didn't seem to fit with the project aesthetic" description:"Add Background Music &open;Scrapped&close;" entry:"1686858666" modified:"1686861324" priority:"H" status:"pending" uuid:"1f349620-28b7-458a-b4b0-18dc23bcfa81"]
+new [annotation_1686861223:"Background music was implemented, but it didn't seem to fit with the project aesthetic" description:"Add Background Music &open;Scrapped&close;" end:"1686861328" entry:"1686858666" modified:"1686861328" priority:"H" status:"completed" uuid:"1f349620-28b7-458a-b4b0-18dc23bcfa81"]
+---

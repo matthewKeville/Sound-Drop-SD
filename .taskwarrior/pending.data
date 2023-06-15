@@ -1,4 +1,3 @@
-[description:"Add Background Music" entry:"1686858666" modified:"1686860123" priority:"H" status:"pending" uuid:"1f349620-28b7-458a-b4b0-18dc23bcfa81"]
 [description:"Create audio busses to allow control of different audio sources" entry:"1686858697" modified:"1686860046" priority:"M" status:"pending" uuid:"b52bb4da-12b5-4f9a-a4c9-0bf400a8468e"]
 [description:"create a detailed github page with demos showcasing the project" entry:"1686858713" modified:"1686860038" priority:"H" status:"pending" uuid:"4898e649-48c7-4cd9-b5e1-f9313b8369a9"]
 [description:"create a process to release a debian package for the project" entry:"1686858735" modified:"1686860049" priority:"L" status:"pending" uuid:"f4ae5a3a-bc1a-4631-9117-e1ff21515f43"]

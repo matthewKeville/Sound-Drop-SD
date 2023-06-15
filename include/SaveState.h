@@ -14,6 +14,8 @@ class SaveState {
     void save(std::vector<Line*>& saveLines ,std::vector<Spawner*>& saveSpawners);
     //extract the local storage into the provided parameters
     void load(std::vector<Line*>& liveLines ,std::vector<Spawner*>& liveSpawners);
+    void deleteLocal();
+    ~SaveState();
 };
 
 #endif
