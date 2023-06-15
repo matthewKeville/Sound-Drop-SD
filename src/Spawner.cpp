@@ -6,9 +6,10 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "util.h"
 
-Spawner::Spawner(Shader* shader,Shader* ballShader,const unsigned int* spawnerVao,const unsigned int* spawnerVbo,const unsigned int* ballVao,const unsigned int* ballVbo,float cx, float cy,float
-    baseFrequency,float scale) {
-
+Spawner::Spawner( Shader* shader,const unsigned int* spawnerVao,const unsigned int* spawnerVbo,
+                  Shader* digitShader, const unsigned int* digitVao,const unsigned int* digitVbo ,const unsigned int* digitTextures,
+                  Shader* ballShader, const unsigned int* ballVao,const unsigned int* ballVbo,
+                  float cx, float cy,float baseFrequency,float scale) {
 
   this->radius = 0.02f;
   this->center = glm::vec2(cx,cy);
@@ -17,10 +18,15 @@ Spawner::Spawner(Shader* shader,Shader* ballShader,const unsigned int* spawnerVa
   this->scale = scale;
   this->lastQuantumSpawn = 0;
 
-  this->ballShader = ballShader;
   this->shader = shader;
+  this->digitShader = digitShader;
+  this->ballShader = ballShader;
+
   this->vao = spawnerVao;
   this->vbo = spawnerVbo;
+  this->digitVao = digitVao;
+  this->digitVbo = digitVbo;
+  this->digitTextures = digitTextures;
   this->ballVao = ballVao;
   this->ballVbo = ballVbo;
 
@@ -31,10 +37,11 @@ Spawner::Spawner(Shader* shader,Shader* ballShader,const unsigned int* spawnerVa
 //redundancy here for sure
 void Spawner::draw() {
 
-  shader->use();
+  //draw spawner circle
 
+  shader->use();
   int ColorLoc = glGetUniformLocation(shader->ID, "Color"); 
-  glUniform3f(ColorLoc,1.f,1.f,1.f);
+  glUniform3f(ColorLoc,1.f,1.f,1.f); 
   int ModelLoc = glGetUniformLocation(shader->ID, "Model"); 
   glUniformMatrix4fv(ModelLoc, 1, GL_FALSE, glm::value_ptr(this->model));
 
@@ -42,6 +49,29 @@ void Spawner::draw() {
   glBindBuffer(GL_ARRAY_BUFFER,*vbo);
   glBindVertexArray(*vao); 
   glDrawArrays(GL_LINES, 0, 3*keville::util::CIRCLE_SIDES);
+
+  //draw spawner digit
+
+  digitShader->use();
+
+  int digitModelLoc = glGetUniformLocation(digitShader->ID, "Model"); 
+  glUniformMatrix4fv(digitModelLoc, 1, GL_FALSE, glm::value_ptr(this->digitModel));
+
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, this->digitTextures[this->scale]);
+
+  int digitTextureLoc = glGetUniformLocation(digitShader->ID, "Texture0"); 
+  //glUniform1f(digitTextureLoc,digitTextures[0]);
+
+
+  glBindBuffer(GL_ARRAY_BUFFER,*this->digitVbo);
+  glBindVertexArray(*this->digitVao); 
+
+  glDrawArrays(GL_TRIANGLES, 0, 6);
+
+  //digits
+
+
 
 }
 
@@ -98,6 +128,7 @@ void Spawner::position(float x,float y) {
 
 void Spawner::setScale(unsigned int scale) {
   this->scale = scale;
+  std::cout << " spawner scale set to " << scale << std::endl;
 }
 
 unsigned int Spawner::getScale() {
@@ -105,9 +136,19 @@ unsigned int Spawner::getScale() {
 }
 
 void Spawner::updateModelMatrix() {
-  this->model = glm::mat4(1.0f);
-  this->model = glm::translate(this->model,glm::vec3(center.x,center.y,0));   //translate into place
-  this->model = glm::scale(this->model,this->radius * glm::vec3(1));
+  glm::mat4 baseModel = glm::mat4(1.0f);
+  baseModel = glm::translate(baseModel,glm::vec3(center.x,center.y,0));   //translate into place
+  this->model = glm::scale(baseModel,this->radius * glm::vec3(1));
+
+  //the spawner scale indicator will be render 30 degrees above the spawner
+  float angle = M_PI/60; //30 degrees
+  float r = 0.05f;
+  float digitScale = 0.040f;
+  float aspect = 0.5f;
+  this->digitModel = glm::translate(baseModel,glm::vec3(r*cos(angle),r*sin(angle),0.0f));
+  this->digitModel = glm::scale(this->digitModel,glm::vec3(digitScale,digitScale,0.0f));
+  this->digitModel = glm::scale(this->digitModel,glm::vec3(aspect,1.0f,1.0f));
+
 }
 
 glm::vec2 Spawner::getPosition() {

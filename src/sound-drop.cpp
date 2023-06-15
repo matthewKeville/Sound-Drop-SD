@@ -12,13 +12,14 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/io.hpp> //to use <<() operator
+#include <glm/gtx/io.hpp> //to use <<() : extraction operator on glm data types
 #include "soloud.h"
 #include "soloud_wav.h"
 #include "soloud_thread.h"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "stb_image.h" //image loading
 //keville
 #include "shader.cpp"
 #include "Line.h"
@@ -31,31 +32,25 @@
 const int MAX_LINES = 50;
 const int MAX_BALLS = 300; 
 
-int windowWidth;                //glfw window dimensions
+//GLFW
+int windowWidth;                
 int windowHeight;
 GLFWwindow* window;
+glm::vec2 mouse; //glfw window coordinates : (0,windowWidth) x (0,windowHeight)
 
 //viewport 
 const float MAX_VIEWPORT_SCALE = 3.0f;
 const float MIN_VIEWPORT_SCALE = 1.0f;
 float viewportScale = MIN_VIEWPORT_SCALE;
 glm::vec2 viewportCenter = glm::vec2(0,0);
-glm::vec2 preview = viewportCenter;
-
 glm::vec4 clearColor{0.0f,0.0f,0.0f,0.0f};
 glm::mat4 projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
 glm::mat4 view = glm::mat4(1); 
 
-//state
-bool lineDrawing = false;
-bool selected = false;
-bool pausePhysics = false;
-bool muteAudio = false;
-
-glm::vec2 mouse; //glfw window coordinates : (0,windowWidth) x (0,windowHeight)
-
+//shaders
 Shader* lineShader;
 Shader* ballShader;
+Shader* digitShader;
 
 //lines
 std::vector<Line*> lines;
@@ -63,46 +58,46 @@ const float MIN_LINE_THICKNESS=0.001f;
 const float MAX_LINE_THICKNESS=0.01f;
 float lineThickness=0.005f;
 glm::mat4 thicken = glm::scale(glm::mat4(1),glm::vec3(1,lineThickness,1));
-//line gl vars
 unsigned int lineVao;
 unsigned int lineVbo;
 float lineVertices[18] {0}; 
 
-//ball gl vars
+Line* previewLine;
+glm::vec2 previewBasePoint = viewportCenter;
+
+//balls
 unsigned int ballVao;
 unsigned int ballVbo;
 float* ballVertices; //note float* instead of [], ball resolution can change at runtime
+                     
+double ballGravity =  -0.0002f;
+double collisionRestitution = 0.95f;
+std::vector<Ball*> balls;
                                                    
-//spawner gl vars
+//spawners
 unsigned int spawnerVao;
 unsigned int spawnerVbo;
 float* spawnerVertices; //note float* instead of [], ball resolution can change at runtime
 
-Line* previewLine;
-
-//balls
-double ballGravity =  -0.0002f;
-double collisionRestitution = 0.95f;
-std::vector<Ball*> balls;
-
 double DEFAULT_SPAWN_X = -0.5f;
 double DEFAULT_SPAWN_Y = 0.5f;
-
 float DEFAULT_BASE_SPAWN_FREQUENCY = (1.0f/3.0f);
 float DEFAULT_SPAWN_SCALE = 1.0f;
-float SPAWNER_SCALE_MAX = 5.0f;
+float SPAWNER_SCALE_MAX = 8.0f;
 float SPAWNER_SCALE_MIN = 1.0f;
 std::vector<Spawner*> spawners;
+
+//digits
+unsigned int digitVao;
+unsigned int digitVbo;
+float digitVertices[30] {0};
+unsigned int digitTextures[10] = {0};
+
 
 //Interactable (the selected entity)
 Interactable* hovered      = nullptr;
 Interactable* interactable = nullptr; 
-/* 
- * when an interactable is set, 
- * this vector points to the interacted object
- * from the point clicked (in world space)                                  
- */
-glm::vec2 interactableCenterDisplacement = glm::vec2(0,0); 
+glm::vec2 interactableCenterDisplacement = glm::vec2(0,0); /* world space vector from center to unprojected click */
 
 //Audio
 SoLoud::Soloud soloud;
@@ -110,13 +105,11 @@ SoLoud::Wav* sample;
 unsigned int sampleIndex = 0;
 std::vector<std::tuple<std::string,unsigned int>> sampleData; //sampleName, sampleRate
 unsigned int SAMPLE_BASE_RATE = 0;
-
 const float GLOBAL_MAX_VOLUME = 2;
 const float GLOBAL_MIN_VOLUME = 0;
-const float GLOBAL_DEFAULT_VOLUME = 0.5f;
+const float GLOBAL_DEFAULT_VOLUME = 1.0f;
 const unsigned int MAX_VOICE_COUNT = 255;//1024 is standard max, but library supports 4095 with compilation flag
                                          //yet, compiler will yell if this is above 255 ?
-                                                              
 //scales
 unsigned int scaleIndex = 0;
 std::vector<
@@ -126,13 +119,18 @@ std::vector<
   >
 > scaleData;
 
+//saving
 const unsigned int NUM_SAVE_SLOTS = 3;
-
-//save slots
 int selectedSaveSlot = 0;
 SaveState saveSlots[NUM_SAVE_SLOTS];
+
+//sim states
+bool lineDrawing = false;
+bool selected = false;
+bool pausePhysics = false;
+bool muteAudio = false;
                                                               
-//Key states
+//key states
 bool S_PRESSED = false;
 bool P_PRESSED = false;
 bool M_PRESSED = false;
@@ -155,15 +153,13 @@ void play_bounce_audio(Line* lp);
 Interactable* detect_hover();
 void update_interactable();
 void update_balls();
+void updateView();
+void updateProjection();
 //application utilities
 float toDegrees(float radians);
-
 glm::vec2 mouseToNDC(glm::vec2 mouse); //NDC [-1,1] x [1,1]
 glm::vec2 ndcToWorldCoordinates(glm::vec2 ndc); 
 float viewportCenterRange();
-
-void updateView();
-void updateProjection();
 
 int main() {
 
@@ -259,7 +255,7 @@ int main() {
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO(); (void)io;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-  ImGui_ImplGlfw_InitForOpenGL(window, true);               //configure backends
+  ImGui_ImplGlfw_InitForOpenGL(window, true);               // configure backends
   ImGui_ImplOpenGL3_Init(glsl_version);
   ImGui::StyleColorsDark();
 
@@ -273,13 +269,61 @@ int main() {
 
   glViewport(0, 0, 800, 600);
   glfwGetWindowSize(window,&windowWidth,&windowHeight);
-  //glClearColor(0.0f, 0.0f, 0.0f, 0.0f); 
   glClearColor(clearColor.x,clearColor.y,clearColor.z,clearColor.w);
 
+
+  //load digit textures
+  stbi_set_flip_vertically_on_load(true);
+  glGenTextures(10,digitTextures);
+  for ( int i = 0; i < 10; i++ ) {
+    int width, height, nChannels;
+    std::string path = "res/textures/digits/digit" + std::to_string(i) + ".png";
+    unsigned char *data = stbi_load(path.c_str(), &width, &height, &nChannels, 0);
+    if ( ! data ) {
+      std::cout << "error loading texture " << path << std::endl;
+    } else {
+      glBindTexture(GL_TEXTURE_2D, digitTextures[i]);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+      glGenerateMipmap(GL_TEXTURE_2D);
+    }
+  }
+
+  //construct shader programs
+
+  digitShader = new Shader("shaders/digit.vs","shaders/digit.fs");
   lineShader = new Shader("shaders/line.vs","shaders/line.fs");
   ballShader = new Shader("shaders/ball.vs","shaders/line.fs");
 
+  //digitShader
+  float digitVertexData[30] = {
+    0.f,0.0f,0.f, /*Pos*/ 0.0f,0.0f, /*Tex*/
+    1.f,0.0f,0.f,         1.0f,0.0f,
+    1.f,1.0f,0.f,         1.0f,1.0f,
+
+    1.f,1.0f,0.f,         1.0f,1.0f,
+    0.f,1.0f,0.f,         0.0f,1.0f,
+    0.f,0.0f,0.f,         0.0f,0.0f
+  };
+  std::copy(digitVertexData,digitVertexData+30,digitVertices);
+
+  glGenVertexArrays(1, &digitVao);
+  glGenBuffers(1,&digitVbo);
+  //assemble vertex array
+  glBindBuffer(GL_ARRAY_BUFFER,digitVbo);
+  glBindVertexArray(digitVao);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+  glEnableVertexAttribArray(0); 
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3*sizeof(float)));
+  glEnableVertexAttribArray(1); 
+  //initialize vertex buffer
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 5, digitVertices, GL_STATIC_DRAW);
+
+
   // Line Rendering Vars
+  /*
+   * a square centered vertically on the x axis 
+   * that is aligned with the y axis
+   */
   float lineVertexData[18] = {
     0.f,1.0f,0.f,
     1.f,1.0f,0.f,
@@ -289,13 +333,7 @@ int main() {
     0.f,-1.0f,0.f,
     0.f,1.0f,0.f,
   };
-  /*
-   * a square center vertically on the x axis 
-   * that is aligned with the y axis
-   *
-   */
   std::copy(lineVertexData,lineVertexData+18,lineVertices);
-
 
   glGenVertexArrays(1, &lineVao);
   glGenBuffers(1,&lineVbo);
@@ -310,8 +348,7 @@ int main() {
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 3, lineVertices, GL_STATIC_DRAW);
 
   // Balll Rendering Vars
-  
-  int ballVertexTotal;
+  int ballVertexTotal; /*this is useless, below method does not need this*/
   ballVertices =  keville::util::generate_regular_polygon_vertices(keville::util::CIRCLE_SIDES,1,ballVertexTotal);
   //generate buffers
   glGenVertexArrays(1, &ballVao);
@@ -330,7 +367,7 @@ int main() {
 
   // Spawner Rendering Vars
 
-  int spawnerVertexTotal = 0; 
+  int spawnerVertexTotal = 0; /*this is useless, below method does not need this*/
   spawnerVertices = keville::util::generate_regular_polygon_hull_vertices(keville::util::CIRCLE_SIDES,1,spawnerVertexTotal);
 
   //generate buffers
@@ -347,7 +384,7 @@ int main() {
   glBindBuffer(GL_ARRAY_BUFFER, spawnerVbo);
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 3 * 2 * keville::util::CIRCLE_SIDES, spawnerVertices, GL_STATIC_DRAW);
 
-  //set default uniforms
+  //set default uniforms for shader programs
 
   lineShader->use();
   int projectionLocLine = glGetUniformLocation(lineShader->ID, "Projection"); 
@@ -361,20 +398,37 @@ int main() {
   ballShader->use();
   int projectionLocBall = glGetUniformLocation(ballShader->ID, "Projection"); 
   int viewLocBall = glGetUniformLocation(ballShader->ID, "View"); 
+
   glUniformMatrix4fv(projectionLocBall, 1, GL_FALSE, glm::value_ptr(projection));
   glUniformMatrix4fv(viewLocBall, 1, GL_FALSE, glm::value_ptr(view));
 
-  //preview line
+
+  digitShader->use();
+  int projectionLocDigit = glGetUniformLocation(digitShader->ID, "Projection"); 
+  int viewLocDigit = glGetUniformLocation(digitShader->ID, "View"); 
+  int colorLocDigit = glGetUniformLocation(digitShader->ID, "Color"); 
+
+  glUniformMatrix4fv(projectionLocDigit, 1, GL_FALSE, glm::value_ptr(projection));
+  glUniformMatrix4fv(viewLocDigit, 1, GL_FALSE, glm::value_ptr(view));
+  glUniform3f(colorLocDigit,1.0f,0.0f,1.0f);
+
+
+  // Create default object instances
+
   auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
   auto wscp = ndcToWorldCoordinates(mouseToNDC(mouse));
-  previewLine = new Line(lineShader,&lineVao,&lineVbo,preview.x,preview.y,wscp.x,wscp.y,semitoneMapper,colorMapper); //1
 
-  spawners.push_back(new Spawner(ballShader,ballShader,&spawnerVao,&spawnerVbo,&ballVao,&ballVbo,
-        DEFAULT_SPAWN_X,DEFAULT_SPAWN_Y,
-        DEFAULT_BASE_SPAWN_FREQUENCY,4.0f));
-  
+  previewLine = new Line(lineShader,&lineVao,&lineVbo,previewBasePoint.x,previewBasePoint.y,wscp.x,wscp.y,semitoneMapper,colorMapper);
+  spawners.push_back(new Spawner( /*spawner shader is ball shader*/ballShader, &spawnerVao, &spawnerVbo,
+                                  digitShader, &digitVao, &digitVbo, digitTextures,
+                                  ballShader, &ballVao,&ballVbo,
+                                  DEFAULT_SPAWN_X,DEFAULT_SPAWN_Y,
+                                  DEFAULT_BASE_SPAWN_FREQUENCY,2.0f));
+
   while(!glfwWindowShouldClose(window))
   {
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
     //start the dear ImGUI frame
     ImGui_ImplOpenGL3_NewFrame();
@@ -436,7 +490,6 @@ int main() {
     //RENDER
     ///////////////////////////////
     
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
     //draw lines
     for (auto lp : lines) {
@@ -611,6 +664,7 @@ int main() {
       //update projection
       projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
       updateProjection();
+      updateView();
     }
 
     if ( saveClicked ) {
@@ -741,8 +795,14 @@ void processInput(GLFWwindow* window) {
     if (!S_PRESSED) {
       if (!selected && hovered == nullptr) { 
         auto wscp = ndcToWorldCoordinates(mouseToNDC(mouse));
-        spawners.push_back(new Spawner(ballShader,ballShader,&spawnerVao,&spawnerVbo,&ballVao,&ballVbo,wscp.x,wscp.y,
-          DEFAULT_BASE_SPAWN_FREQUENCY,DEFAULT_SPAWN_SCALE));
+
+
+        spawners.push_back(new Spawner( /*spawner shader is ball shader*/ballShader, &spawnerVao, &spawnerVbo,
+                                        digitShader, &digitVao, &digitVbo, digitTextures,
+                                        ballShader, &ballVao,&ballVbo,
+                                        wscp.x,wscp.y,
+                                        DEFAULT_BASE_SPAWN_FREQUENCY,DEFAULT_SPAWN_SCALE));
+
       }
       S_PRESSED = true;
       std::cout << "spawning spawner" << std::endl;
@@ -835,7 +895,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         if ( !lineDrawing ) {
 
           //map mouse coordinates to view plane
-          preview = ndcToWorldCoordinates(mouseToNDC(mouse));
+          previewBasePoint = ndcToWorldCoordinates(mouseToNDC(mouse));
 
           lineDrawing = true;
         } else { 
@@ -845,7 +905,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
           
           //create a Line instance of this line
           auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
-          lines.push_back(new Line(lineShader,&lineVao,&lineVbo,preview.x,preview.y,xPos,yPos,semitoneMapper,colorMapper));
+          lines.push_back(new Line(lineShader,&lineVao,&lineVbo,previewBasePoint.x,previewBasePoint.y,xPos,yPos,semitoneMapper,colorMapper));
           lineDrawing = false;
         }
 
@@ -879,7 +939,7 @@ void drawLinePreview(){
   constrainedPreviewLineTerminal(xPos,yPos);
 
   auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
-  previewLine->updatePoints(glm::vec2(preview.x,preview.y),glm::vec2(xPos,yPos));
+  previewLine->updatePoints(glm::vec2(previewBasePoint.x,previewBasePoint.y),glm::vec2(xPos,yPos));
   previewLine->calculateToneAndColor(semitoneMapper,colorMapper);
   previewLine->draw();
 }
@@ -894,10 +954,10 @@ void constrainedPreviewLineTerminal(float& xPos,float& yPos) {
 
   //constrain the line between our bounds
   
-  auto vec = wscp - preview;
+  auto vec = wscp - previewBasePoint;
 
   float norm = sqrt(glm::dot(vec,vec));
-  glm::vec2 Pos = preview;
+  glm::vec2 Pos = previewBasePoint;
 
   if ( norm > keville::util::MAX_LINE_WIDTH ) {
     Pos += (vec/norm * keville::util::MAX_LINE_WIDTH); 
@@ -1206,6 +1266,11 @@ void updateView() {
   int viewLocBall = glGetUniformLocation(ballShader->ID, "View"); 
   glUniformMatrix4fv(viewLocBall, 1, GL_FALSE, glm::value_ptr(view));
 
+  digitShader->use();
+
+  int viewLocDigit = glGetUniformLocation(digitShader->ID, "View"); 
+  glUniformMatrix4fv(viewLocDigit, 1, GL_FALSE, glm::value_ptr(view));
+
 }
 
 void updateProjection() {
@@ -1221,5 +1286,11 @@ void updateProjection() {
 
   int projectionLocBall = glGetUniformLocation(ballShader->ID, "Projection"); 
   glUniformMatrix4fv(projectionLocBall, 1, GL_FALSE, glm::value_ptr(projection));
+
+
+  digitShader->use();
+
+  int projectionLocDigit = glGetUniformLocation(digitShader->ID, "Projection"); 
+  glUniformMatrix4fv(projectionLocDigit, 1, GL_FALSE, glm::value_ptr(projection));
 
 }

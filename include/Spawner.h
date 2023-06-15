@@ -11,7 +11,8 @@
 class Spawner : public Interactable {
   public:
     void draw();
-    Spawner(Shader*,Shader*,const unsigned int*,const unsigned int*,const unsigned int*,const unsigned int*,float,float,float,float);
+    //spawner digit ball
+    Spawner(Shader*,const unsigned int*,const unsigned int*,Shader*,const unsigned int*,const unsigned int*,const unsigned int*,Shader*,const unsigned int*,const unsigned int*,float,float,float,float);
     Ball* spawn(float currentTime/*in s from app start */);
     void setScale(unsigned int);
     unsigned int getScale();
@@ -21,14 +22,9 @@ class Spawner : public Interactable {
     bool IsHovering(glm::vec2 wscp);
     glm::vec2 getPosition();
   private:
-    //opengl buffers main circle
-    float* vertices; 
-    //opengl buffers scale circle
-    unsigned int vaoScale;
-    unsigned int vboScale;
-    float* verticesScale; 
     
     Shader* shader;
+    Shader* digitShader;
     Shader* ballShader;
 
     float radius;
@@ -43,10 +39,16 @@ class Spawner : public Interactable {
 
     const unsigned int* ballVao;
     const unsigned int* ballVbo;
+
+    const unsigned int* digitVao;
+    const unsigned int* digitVbo;
+    const unsigned int* digitTextures;
+
     const unsigned int* vao;
     const unsigned int* vbo;
 
     glm::mat4 model;
+    glm::mat4 digitModel;
     void updateModelMatrix();
 
 };
