@@ -1,0 +1,36 @@
+{"description":"do a thing","entry":"20230615T194049Z","modified":"20230615T194049Z","status":"pending","uuid":"532c1e9b-1519-47ef-bd35-6410025cd2b4"}
+{"description":"do a thing","end":"20230615T194924Z","entry":"20230615T194049Z","modified":"20230615T194924Z","status":"completed","uuid":"532c1e9b-1519-47ef-bd35-6410025cd2b4"}
+{"description":"Add Background Music","entry":"20230615T195106Z","modified":"20230615T195106Z","status":"pending","uuid":"1f349620-28b7-458a-b4b0-18dc23bcfa81"}
+{"description":"Create audio busses to allow control of different audio sources","entry":"20230615T195137Z","modified":"20230615T195137Z","status":"pending","uuid":"b52bb4da-12b5-4f9a-a4c9-0bf400a8468e"}
+{"description":"create a detailed github page with demos showcasing the project","entry":"20230615T195153Z","modified":"20230615T195153Z","status":"pending","uuid":"4898e649-48c7-4cd9-b5e1-f9313b8369a9"}
+{"description":"create a process to release a debian package for the project","entry":"20230615T195215Z","modified":"20230615T195215Z","status":"pending","uuid":"f4ae5a3a-bc1a-4631-9117-e1ff21515f43"}
+{"description":"get a build running under windows","entry":"20230615T195228Z","modified":"20230615T195228Z","status":"pending","uuid":"c11d79bd-c729-490c-8e61-01224f2d0b03"}
+{"description":"create a windows installer","entry":"20230615T195254Z","modified":"20230615T195254Z","status":"pending","uuid":"44bc9231-ffbd-4668-9da8-5eda456e760d"}
+{"description":"Implement an undo & redo stack","entry":"20230615T195306Z","modified":"20230615T195306Z","status":"pending","uuid":"62971f6e-6217-4eaa-87c7-4de4c31a132e"}
+{"description":"implement a particle effect when notes are played","entry":"20230615T195345Z","modified":"20230615T195345Z","status":"pending","uuid":"a3c1ef62-f170-49fd-a9e5-e7ab2de892a8"}
+{"description":"construct a web version using EMSCRIPTEN","entry":"20230615T195410Z","modified":"20230615T195410Z","status":"pending","uuid":"642a0efa-aa84-485a-9b40-f356314dbf06"}
+{"description":"determine why the audio gets distorted to extremely loud volumes","entry":"20230615T195448Z","modified":"20230615T195448Z","status":"pending","uuid":"8a751c08-022b-4cc1-9aed-5fa5d308c2df"}
+{"description":"add a map to show the color of different musical notes","entry":"20230615T195520Z","modified":"20230615T195520Z","status":"pending","uuid":"8e41597d-f4b5-47eb-854d-44700344384c"}
+{"description":"Import and Export saves","entry":"20230615T195540Z","modified":"20230615T195540Z","status":"pending","uuid":"0160c2cb-5350-46b7-ad4e-f04c4e264b3d"}
+{"description":"add a Laser entity that deletes Balls depending on a fixed cycle","entry":"20230615T195624Z","modified":"20230615T195624Z","status":"pending","uuid":"8bdf2ff9-2265-4401-be80-0214e16f0285"}
+{"description":"fix issue where perpendicular lines are unselectable","entry":"20230615T195644Z","modified":"20230615T195644Z","status":"pending","uuid":"e3c77537-8255-4c70-9a03-fc4d60e2db39"}
+{"description":"construct a better abstraction to map controls with parity between ImGUI and keyboard controls","entry":"20230615T195709Z","modified":"20230615T195709Z","status":"pending","uuid":"e06b6f2e-2794-401a-8783-0e334a60d6d8"}
+{"description":"add reverb filter","entry":"20230615T201235Z","modified":"20230615T201235Z","status":"pending","uuid":"0acc3457-f181-471a-aacc-3eb1780068c4"}
+{"description":"add tempo offset to spawners to allow for more complex polyrythems","entry":"20230615T201328Z","modified":"20230615T201328Z","status":"pending","uuid":"cfe298ea-a985-4de8-b029-00fb9626370f"}
+{"description":"get a build running under windows","entry":"20230615T195228Z","modified":"20230615T201353Z","priority":"H","status":"pending","uuid":"c11d79bd-c729-490c-8e61-01224f2d0b03"}
+{"description":"create a detailed github page with demos showcasing the project","entry":"20230615T195153Z","modified":"20230615T201358Z","priority":"H","status":"pending","uuid":"4898e649-48c7-4cd9-b5e1-f9313b8369a9"}
+{"description":"Create audio busses to allow control of different audio sources","entry":"20230615T195137Z","modified":"20230615T201406Z","priority":"M","status":"pending","uuid":"b52bb4da-12b5-4f9a-a4c9-0bf400a8468e"}
+{"description":"create a process to release a debian package for the project","entry":"20230615T195215Z","modified":"20230615T201409Z","priority":"L","status":"pending","uuid":"f4ae5a3a-bc1a-4631-9117-e1ff21515f43"}
+{"description":"create a windows installer","entry":"20230615T195254Z","modified":"20230615T201413Z","priority":"L","status":"pending","uuid":"44bc9231-ffbd-4668-9da8-5eda456e760d"}
+{"description":"Implement an undo & redo stack","entry":"20230615T195306Z","modified":"20230615T201423Z","priority":"H","status":"pending","uuid":"62971f6e-6217-4eaa-87c7-4de4c31a132e"}
+{"description":"construct a web version using EMSCRIPTEN","entry":"20230615T195410Z","modified":"20230615T201427Z","priority":"L","status":"pending","uuid":"642a0efa-aa84-485a-9b40-f356314dbf06"}
+{"description":"add a Laser entity that deletes Balls depending on a fixed cycle","entry":"20230615T195624Z","modified":"20230615T201432Z","priority":"L","status":"pending","uuid":"8bdf2ff9-2265-4401-be80-0214e16f0285"}
+{"description":"add tempo offset to spawners to allow for more complex polyrythems","entry":"20230615T201328Z","modified":"20230615T201442Z","priority":"M","status":"pending","uuid":"cfe298ea-a985-4de8-b029-00fb9626370f"}
+{"description":"add reverb filter","entry":"20230615T201235Z","modified":"20230615T201444Z","priority":"L","status":"pending","uuid":"0acc3457-f181-471a-aacc-3eb1780068c4"}
+{"description":"construct a better abstraction to map controls with parity between ImGUI and keyboard controls","entry":"20230615T195709Z","modified":"20230615T201448Z","priority":"H","status":"pending","uuid":"e06b6f2e-2794-401a-8783-0e334a60d6d8"}
+{"description":"fix issue where perpendicular lines are unselectable","entry":"20230615T195644Z","modified":"20230615T201454Z","priority":"H","status":"pending","uuid":"e3c77537-8255-4c70-9a03-fc4d60e2db39"}
+{"description":"Import and Export saves","entry":"20230615T195540Z","modified":"20230615T201458Z","priority":"M","status":"pending","uuid":"0160c2cb-5350-46b7-ad4e-f04c4e264b3d"}
+{"description":"add a map to show the color of different musical notes","entry":"20230615T195520Z","modified":"20230615T201501Z","priority":"M","status":"pending","uuid":"8e41597d-f4b5-47eb-854d-44700344384c"}
+{"description":"determine why the audio gets distorted to extremely loud volumes","entry":"20230615T195448Z","modified":"20230615T201505Z","priority":"M","status":"pending","uuid":"8a751c08-022b-4cc1-9aed-5fa5d308c2df"}
+{"description":"implement a particle effect when notes are played","entry":"20230615T195345Z","modified":"20230615T201509Z","priority":"M","status":"pending","uuid":"a3c1ef62-f170-49fd-a9e5-e7ab2de892a8"}
+{"description":"Add Background Music","entry":"20230615T195106Z","modified":"20230615T201523Z","priority":"H","status":"pending","uuid":"1f349620-28b7-458a-b4b0-18dc23bcfa81"}
