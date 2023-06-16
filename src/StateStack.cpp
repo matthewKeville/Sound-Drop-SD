@@ -12,18 +12,24 @@ StateStack::StateStack() {
 void StateStack::Record(SaveState* currentState) {
   //does this eliminate the *past* future
   if ( future != present ) {
+    //std::cout << " rewriting future " << std::endl;
     RewriteFuture();
   }
 
   //does this eliminate a past state?
-  if ( activeStateCount == size-1 ) {
+  if ( activeStateCount == size ) {
+    //std::cout << " rewriting past " << std::endl;
     RewritePast();
   }
 
   //no recorded states
   if ( present == nullptr ) {
+    //std::cout << " blank slate " << std::endl;
     present = new StateNode { nullptr, nullptr , currentState };
+    future = present;
+    past = present;
   } else {
+    //std::cout << " normal record " << std::endl;
     present->next = new StateNode { present , nullptr , currentState };
     present = present->next;
     future = present;
@@ -79,6 +85,20 @@ void StateStack::RewriteFuture() {
 
 SaveState* StateStack::Current() {
   return present == nullptr ? nullptr : present->state;
+}
+
+void StateStack::Reset() {
+  if ( past == nullptr ) {
+    return;
+  }
+  StateNode* sn = past;
+  while (sn != future && sn->next != nullptr) {
+    sn = sn->next;
+    delete sn->prev;
+  }
+  delete sn;
+  this->future = this->present = this->past = nullptr;
+  this->activeStateCount = 0;
 }
 
 

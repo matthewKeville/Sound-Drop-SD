@@ -132,3 +132,21 @@ time 1686861328
 old [annotation_1686861223:"Background music was implemented, but it didn't seem to fit with the project aesthetic" description:"Add Background Music &open;Scrapped&close;" entry:"1686858666" modified:"1686861324" priority:"H" status:"pending" uuid:"1f349620-28b7-458a-b4b0-18dc23bcfa81"]
 new [annotation_1686861223:"Background music was implemented, but it didn't seem to fit with the project aesthetic" description:"Add Background Music &open;Scrapped&close;" end:"1686861328" entry:"1686858666" modified:"1686861328" priority:"H" status:"completed" uuid:"1f349620-28b7-458a-b4b0-18dc23bcfa81"]
 ---
+time 1686874016
+new [description:"generalize state stack to accept an arbitrary type" entry:"1686874016" modified:"1686874016" status:"pending" uuid:"ef114786-e7b7-4303-a16e-e81b539311b0"]
+---
+time 1686885678
+old [description:"Implement an undo & redo stack" entry:"1686858786" modified:"1686860063" priority:"H" status:"pending" uuid:"62971f6e-6217-4eaa-87c7-4de4c31a132e"]
+new [description:"Implement an undo & redo stack" end:"1686885678" entry:"1686858786" modified:"1686885678" priority:"H" status:"completed" uuid:"62971f6e-6217-4eaa-87c7-4de4c31a132e"]
+---
+time 1686885716
+new [description:"create a list based implementation of StateStack" entry:"1686885716" modified:"1686885716" status:"pending" uuid:"14602196-e3fc-405d-af91-dd124343b980"]
+---
+time 1686885719
+old [description:"create a list based implementation of StateStack" entry:"1686885716" modified:"1686885716" status:"pending" uuid:"14602196-e3fc-405d-af91-dd124343b980"]
+new [description:"create a list based implementation of StateStack" entry:"1686885716" modified:"1686885719" priority:"L" status:"pending" uuid:"14602196-e3fc-405d-af91-dd124343b980"]
+---
+time 1686885824
+old [description:"Import and Export saves" entry:"1686858940" modified:"1686860098" priority:"M" status:"pending" uuid:"0160c2cb-5350-46b7-ad4e-f04c4e264b3d"]
+new [description:"Import and Export saves" entry:"1686858940" modified:"1686885824" priority:"L" status:"pending" uuid:"0160c2cb-5350-46b7-ad4e-f04c4e264b3d"]
+---

@@ -435,6 +435,8 @@ int main() {
                                   DEFAULT_SPAWN_X,DEFAULT_SPAWN_Y,
                                   DEFAULT_BASE_SPAWN_FREQUENCY,2.0f));
 
+  record();
+
   while(!glfwWindowShouldClose(window))
   {
 
@@ -448,12 +450,17 @@ int main() {
     ///////////////////////////////
     //INPUT
     ///////////////////////////////
-    
+   
+    bool interactingBeforeInputs = (interactable != nullptr);  /* for tracking interaction end */
+
     hovered = detect_hover();
     if (!io.WantCaptureMouse) {
       processInput(window);
     }
     glfwPollEvents();
+
+
+
 
     ///////////////////////////////
     //DELETE
@@ -485,6 +492,21 @@ int main() {
           sitty++;
         }
       }
+
+    ///////////////////////////////
+    //SaveState Interaction complete (delete , move )
+    ///////////////////////////////
+    
+    /* 
+     * This is a rather inelegant solution for how interactions are structured.
+     * The feature criteria requires new Lines, new Spawners, and relocation and deletion
+     * of these entities to be recorded. As a bonus, we get Spawner scale changes
+     * for free. I don't love this approach, or rather I don't love how
+     * event processing is currently structured.
+     */
+    if ( interactable == nullptr && interactingBeforeInputs ) {
+      record(); 
+    }
 
 
     ///////////////////////////////
@@ -687,6 +709,7 @@ int main() {
       //load to selectd slot
       std::cout << " loading slot " << selectedSaveSlot << std::endl;
       saveSlots[selectedSaveSlot].load(lines,spawners);
+      stateStack.Reset();
     }
 
                                                                                                
@@ -721,15 +744,6 @@ void processInput(GLFWwindow* window) {
   }
   if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) {
     P_PRESSED = false;
-  }
-
-  ///////////////////////////////
-  //ESCAPE (ESC)
-  ///////////////////////////////
-  if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-    selected = false;
-    interactable = nullptr;
-    std::cout << "Interaction aborted" << std::endl;
   }
 
   ///////////////////////////////
@@ -812,6 +826,7 @@ void processInput(GLFWwindow* window) {
                                         ballShader, &ballVao,&ballVbo,
                                         wscp.x,wscp.y,
                                         DEFAULT_BASE_SPAWN_FREQUENCY,DEFAULT_SPAWN_SCALE));
+        record();
 
       }
       S_PRESSED = true;
@@ -866,6 +881,9 @@ void processInput(GLFWwindow* window) {
     }
 
     std::cout << "Clearing Entities" << std::endl;
+    std::cout << "Resetting State Stack" << std::endl;
+    stateStack.Reset();
+
   } 
 
   ///////////////////////////////
@@ -914,6 +932,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
           //create a Line instance of this line
           auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
           lines.push_back(new Line(lineShader,&lineVao,&lineVbo,previewBasePoint.x,previewBasePoint.y,xPos,yPos,semitoneMapper,colorMapper));
+          record();
           lineDrawing = false;
         }
 
@@ -938,12 +957,12 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     ///////////
     
     if (button == GLFW_MOUSE_BUTTON_4 && action == GLFW_PRESS) {
-      std::cout << " undo " << std::endl;
+      //std::cout << " undo " << std::endl;
       undo();
     }
 
     if (button == GLFW_MOUSE_BUTTON_5 && action == GLFW_PRESS) {
-      std::cout << " redo " << std::endl;
+      //std::cout << " redo " << std::endl;
       redo();
     }
 }
@@ -1322,9 +1341,11 @@ void record()
   SaveState* now = new SaveState();
   now->save(lines,spawners);
   stateStack.Record(now);
+  std::cout << " Recorded " << std::endl;
 }
 
 void undo() {
+  std::cout << " Undo ! " << std::endl;
   stateStack.Back();
   if ( stateStack.Current() == nullptr ) {
     return;
@@ -1333,6 +1354,7 @@ void undo() {
 };
 
 void redo() {
+  std::cout << " Redo ! " << std::endl;
   stateStack.Forward();
   if ( stateStack.Current() == nullptr ) {
     return;

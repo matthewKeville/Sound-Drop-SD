@@ -6,7 +6,6 @@
 #include "Spawner.h"
 #include "SaveState.h"
 
-//undo redo 
 struct StateNode {
   StateNode* prev;
   StateNode* next;
@@ -29,9 +28,10 @@ class StateStack {
     bool HasBack();
 
     SaveState* Current(); 
+    void Reset(); //destroy all saves
 
   private :
-    const unsigned short int size = 5;  //max no. of time points
+    const unsigned short int size = 16;  //max no. of time points
     unsigned short int activeStateCount; //true time points
     StateNode* future; //the farthest true future
     StateNode* present; 
