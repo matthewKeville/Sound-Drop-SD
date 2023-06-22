@@ -1,4 +1,3 @@
-//std
 #include <iostream>
 #include <cmath>
 #include <vector>
@@ -6,6 +5,7 @@
 #include <tuple> 
 #include <functional>
 #include <algorithm> //std::copy
+//#include <chrono> //sleep thread
 //Third Party
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -71,6 +71,7 @@ unsigned int ballVao;
 unsigned int ballVbo;
 float* ballVertices; //note float* instead of [], ball resolution can change at runtime
                      
+//double ballGravity =  -0.0002f;
 double ballGravity =  -0.0002f;
 double collisionRestitution = 0.95f;
 std::vector<Ball*> balls;
@@ -439,7 +440,6 @@ int main() {
 
   while(!glfwWindowShouldClose(window))
   {
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
     //start the dear ImGUI frame
@@ -559,7 +559,8 @@ int main() {
     }
 
     int guiSelectedScaleIndex = scaleIndex;
-    const char* scaleNames[scaleData.size()] = {} ;
+    //const char* scaleNames[scaleData.size()] = {} ;
+    const char* scaleNames[scaleData.size()];
     for ( size_t i = 0; i < scaleData.size(); i++ ) {
       scaleNames[i] = std::get<0>(scaleData[i]).c_str();
     }
@@ -591,7 +592,7 @@ int main() {
     bool saveClicked = false;
     bool loadClicked = false;
     if(ImGui::CollapsingHeader("Save/Load")) {
-      for ( int n = 0; n < NUM_SAVE_SLOTS; n++ ) {
+      for ( int n = 0; n < (int) NUM_SAVE_SLOTS; n++ ) {
         char buf[32];
         sprintf(buf,"State %d",n);
         if ( ImGui::Selectable(buf, newSaveSlot == n ))
@@ -1315,7 +1316,6 @@ void updateView() {
 }
 
 void updateProjection() {
-
 
   //update projection uniforms
   lineShader->use();

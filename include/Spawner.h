@@ -33,9 +33,6 @@ class Spawner : public Interactable {
     float baseFrequency; //spawn frequency in Hz
     unsigned int scale;
     unsigned int lastQuantumSpawn;
-    const unsigned int MAX_SCALE = 10;
-    float lastTime;
-    double lastSpawn;
 
     const unsigned int* ballVao;
     const unsigned int* ballVbo;

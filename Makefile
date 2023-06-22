@@ -7,9 +7,15 @@ IMGUI_SOURCES =  $(IMGUI_DIR)/imgui.cpp  $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR
 IMGUI_SOURCES += $(IMGUI_DIR)/imgui_widgets.cpp
 IMGUI_SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
 
+COMPILER=clang++
+#COMPILER=g++
+
+STD=c++17
+
 all: build/sound-drop.exe 
 build/sound-drop.exe: build/
-	g++ -g -Wall -Wextra  -I./include/ -I$(SOLOUD_HEADERS) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends -L$(SOLOUD_A)  src/glad.c src/stb_image.cpp src/sound-drop.cpp src/Line.cpp src/Ball.cpp src/util.cpp src/Spawner.cpp src/Interactable.cpp src/SaveState.cpp src/StateStack.cpp $(IMGUI_SOURCES) -o build/sound-drop.exe -lglfw -lGL -lsoloud_static -lasound
+
+	$(COMPILER) -std=$(STD) -g -Wall -Wextra  -I./include/ -I$(SOLOUD_HEADERS) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends -L$(SOLOUD_A)  src/glad.c src/stb_image.cpp src/sound-drop.cpp src/Line.cpp src/Ball.cpp src/util.cpp src/Spawner.cpp src/Interactable.cpp src/SaveState.cpp src/StateStack.cpp $(IMGUI_SOURCES) -o build/sound-drop.exe -lglfw -lGL -lsoloud_static -lasound
 build/ :
 	mkdir build
 clean : 

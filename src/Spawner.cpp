@@ -61,7 +61,7 @@ void Spawner::draw() {
   glBindTexture(GL_TEXTURE_2D, this->digitTextures[this->scale]);
 
   int digitTextureLoc = glGetUniformLocation(digitShader->ID, "Texture0"); 
-  //glUniform1f(digitTextureLoc,digitTextures[0]);
+ glUniform1f(digitTextureLoc,digitTextures[0]);
 
 
   glBindBuffer(GL_ARRAY_BUFFER,*this->digitVbo);
