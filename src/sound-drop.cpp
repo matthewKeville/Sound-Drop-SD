@@ -41,7 +41,8 @@ glm::vec2 mouse; //glfw window coordinates : (0,windowWidth) x (0,windowHeight)
 const int vsync = 0;
 
 //OPENGL
-const auto frameTarget = std::chrono::milliseconds(16);// ~60 fps (application logic)
+//const auto frameTarget = std::chrono::milliseconds(16);// ~60 fps (application logic)
+const auto frameTarget = std::chrono::milliseconds(32);// ~30 fps (application logic)
 const float MAX_VIEWPORT_SCALE = 3.0f;
 const float MIN_VIEWPORT_SCALE = 1.0f;
 float viewportScale = MIN_VIEWPORT_SCALE;
@@ -127,7 +128,6 @@ int selectedSaveSlot = 0;
 SaveState saveSlots[NUM_SAVE_SLOTS];
 StateStack stateStack;
 
-
 //sim states
 bool lineDrawing = false;
 bool selected = false;
@@ -140,10 +140,16 @@ bool P_PRESSED = false;
 bool M_PRESSED = false;
 bool UP_PRESSED = false;
 bool DOWN_PRESSED = false;
+bool LEFT_PRESSED = false;
+bool RIGHT_PRESSED = false;
+// universal modifier key
+bool ALT_PRESSED = false;
 
+
+//glfw key polling
+void processInput(GLFWwindow* window);
 //glfw callbacks
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow* window);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
@@ -157,8 +163,11 @@ void play_bounce_audio(Line* lp);
 Interactable* detect_hover();
 void update_interactable();
 void update_balls();
-void updateView();
-void updateProjection();
+void updateView(); //update shader programs
+void changeView(glm::vec2); //update internal view representation ( and confine to predefined constraints )
+void updateProjection(); //update shader programs
+void changeProjection(float); //update internal view representation
+void resetViewport();                             
 
 void init();
 
@@ -206,8 +215,8 @@ int main() {
     auto clearance = frameTarget - frameTime;
     auto clearance_ms = std::chrono::duration_cast<std::chrono::milliseconds>(clearance);
 
-    std::cout << " frame time ms : " << frameTime_ms.count() << std::endl;
-    std::cout << " clearance  ms: " << clearance_ms.count() << std::endl;
+    //std::cout << " frame time ms : " << frameTime_ms.count() << std::endl;
+    //std::cout << " clearance  ms: " << clearance_ms.count() << std::endl;
 
     if ( clearance.count() >= 0  ) {
       std::this_thread::sleep_for(clearance);
@@ -235,11 +244,20 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 
 void processInput(GLFWwindow* window) {
 
-  ///////////////////////////////
-  //PLAY/PAUSE
-  ///////////////////////////////
+  //modifier key state tracking
+  if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS) {
+    if (!ALT_PRESSED) {  // Toggle Play/Pause
+      ALT_PRESSED = true;
+      std::cout << " mod key enabled " << std::endl;
+    }
+  }
+  if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_RELEASE && ALT_PRESSED) {
+    std::cout << " mod key disabled " << std::endl;
+    ALT_PRESSED = false;
+  }
+
   if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
-    if (!P_PRESSED) {
+    if (!P_PRESSED) {  // Toggle Play/Pause
       pausePhysics = !pausePhysics;
       P_PRESSED = true;
       std::cout << "Simulation " << (pausePhysics ? " Paused " : " Resume ")  << std::endl;
@@ -249,63 +267,55 @@ void processInput(GLFWwindow* window) {
     P_PRESSED = false;
   }
 
-  ///////////////////////////////
-  //DELETE (D)
-  ///////////////////////////////
-  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-    if (selected) {
-      std::cout << "Deleting Interactable" << std::endl;
-      //what kind of interactable is it (where is it stored)
-      //this is bad and needs to be refactored
-      if ( dynamic_cast<Line*>(interactable) != nullptr ) {
-        interactable->markDeleted();
-      }
-      if ( dynamic_cast<Spawner*>(interactable) != nullptr ) {
-        interactable->markDeleted();
-      }
 
-    }
-    selected = false;
-    interactable = nullptr;
-  }
-
-  ///////////////////////////////
-  //Change the scale of spawner (UP)
-  ///////////////////////////////
   if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
     if (!UP_PRESSED) {
-      //if this is a spawner adjust the scale
-      if (selected) {
+      UP_PRESSED = true;
+      if (selected) { // INCREASE SPAWNER SCALE
         Spawner* sp = dynamic_cast<Spawner*>(interactable);
         if ( sp != nullptr ) {
           unsigned int current = sp->getScale();
           if (current != SPAWNER_SCALE_MAX) {
             sp->setScale(current+1);
           }     
-          UP_PRESSED = true;
           std::cout << "increasing spawner" << std::endl;
         }
-      }
-    } }
+      } else if (ALT_PRESSED) { // ZOOM IN
+          std::cout << "zooming in" << std::endl;
+          changeProjection(viewportScale*(0.9f));
+          updateProjection();
+      } else { // PAN UP
+          std::cout << "panning up" << std::endl;
+          changeView(viewportCenter + glm::vec2(0,-0.1f));
+          updateView();
+        }
+    }
+  } 
   if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_RELEASE) {
     UP_PRESSED = false;
   }
 
-  ///////////////////////////////
-  //Change the scale of spawner (DOWN)
-  ///////////////////////////////
+
   if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
     if (!DOWN_PRESSED) {
-      if (selected) {
+      DOWN_PRESSED = true;
+      if (selected) { // DECREASE SPAWNER SCALE
         Spawner* sp = dynamic_cast<Spawner*>(interactable);
         if ( sp != nullptr ) {
           unsigned int current = sp->getScale();
           if (current != SPAWNER_SCALE_MIN) {
             sp->setScale(current-1);
           }     
-          DOWN_PRESSED = true;
           std::cout << "decreasing spawner" << std::endl;
         }
+      } else if (ALT_PRESSED) { // ZOOM OUT
+          std::cout << "zooming out" << std::endl;
+          changeProjection(viewportScale*(1.1f));
+          updateProjection();
+      } else { // PAN DOWN
+          std::cout << "panning down" << std::endl;
+          changeView(viewportCenter + glm::vec2(0,0.1f));
+          updateView();
       }
     }
   }
@@ -314,25 +324,44 @@ void processInput(GLFWwindow* window) {
   }
 
 
+  if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+    if (!LEFT_PRESSED) { // PAN LEFT
+      LEFT_PRESSED = true;
+      std::cout << "panning left" << std::endl;
+      changeView(viewportCenter + glm::vec2(0.1f,0.0f));
+      updateView();
+    }
+  } 
+  if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_RELEASE) {
+    LEFT_PRESSED = false;
+  }
 
-  ///////////////////////////////
-  //SPAWN (S)
-  ///////////////////////////////
+
+  if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+    if (!RIGHT_PRESSED) { // PAN RIGHT
+      RIGHT_PRESSED = true;
+      std::cout << "panning right" << std::endl;
+      changeView(viewportCenter + glm::vec2(-0.1f,0.0f));
+      updateView();
+    }
+  } 
+  if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_RELEASE) {
+    RIGHT_PRESSED = false;
+  }
+
+
   if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
     if (!S_PRESSED) {
-      if (!selected && hovered == nullptr) { 
+      S_PRESSED = true;
+      if (!selected && hovered == nullptr) {  // Spawn
         auto wscp = ndcToWorldCoordinates(mouseToNDC(mouse));
-
-
         spawners.push_back(new Spawner( /*spawner shader is ball shader*/ballShader, &spawnerVao, &spawnerVbo,
                                         digitShader, &digitVao, &digitVbo, digitTextures,
                                         ballShader, &ballVao,&ballVbo,
                                         wscp.x,wscp.y,
                                         DEFAULT_BASE_SPAWN_FREQUENCY,DEFAULT_SPAWN_SCALE));
         record();
-
       }
-      S_PRESSED = true;
       std::cout << "spawning spawner" << std::endl;
     }
   }
@@ -346,8 +375,8 @@ void processInput(GLFWwindow* window) {
   ///////////////////////////////
   if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS) {
     if (!M_PRESSED) {
-      muteAudio = !muteAudio;
       M_PRESSED = true;
+      muteAudio = !muteAudio;
       soloud.stopAll();
       std::cout << (muteAudio ? " Muting " : " UnMuting ")  << std::endl;
     }
@@ -357,11 +386,29 @@ void processInput(GLFWwindow* window) {
   }
 
 
+  ///////////////////////////////
+  //Delete (d)
+  ///////////////////////////////
+  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+      if (selected) {  // Delete an Interactable
+          std::cout << "Deleting Interactable" << std::endl;
+          //what kind of interactable is it (where is it stored)
+          //this is bad and needs to be refactored
+          if ( dynamic_cast<Line*>(interactable) != nullptr ) {
+              interactable->markDeleted();
+          }
+          if ( dynamic_cast<Spawner*>(interactable) != nullptr ) {
+              interactable->markDeleted();
+          }
+      }
+      selected = false;
+      interactable = nullptr;
+  }
+
   //////////////////////////////
   //Clear (C)
   //////////////////////////////
   if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
-
     auto sitty = spawners.begin();
     while (sitty != spawners.end()) {
       Spawner* sp = *sitty;
@@ -386,7 +433,6 @@ void processInput(GLFWwindow* window) {
     std::cout << "Clearing Entities" << std::endl;
     std::cout << "Resetting State Stack" << std::endl;
     stateStack.Reset();
-
   } 
 
   ///////////////////////////////
@@ -394,6 +440,13 @@ void processInput(GLFWwindow* window) {
   ///////////////////////////////
   if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
     glfwSetWindowShouldClose(window,true);
+  } 
+
+  ///////////////////////////////
+  //RESET Vew (r)
+  ///////////////////////////////
+  if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+    resetViewport();
   } 
 
 
@@ -817,6 +870,23 @@ void updateView() {
 
 }
 
+//
+void changeView(glm::vec2 newCenter) {
+    newCenter.x = std::max(-viewportCenterRange(),newCenter.x);
+    newCenter.x = std::min(viewportCenterRange(),newCenter.x);
+    newCenter.y = std::max(-viewportCenterRange(),newCenter.y);
+    newCenter.y = std::min(viewportCenterRange(),newCenter.y);
+    viewportCenter = newCenter;
+    view = glm::translate(glm::mat4(1),glm::vec3(viewportCenter.x,viewportCenter.y,0));
+}
+
+void changeProjection(float scale) {
+    viewportScale = std::max(MIN_VIEWPORT_SCALE, scale);
+    viewportScale = std::min(MAX_VIEWPORT_SCALE, viewportScale);
+    projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
+    std::cout << " current viewport scale is " << viewportScale << std::endl;
+}
+
 void updateProjection() {
 
   //update projection uniforms
@@ -836,6 +906,14 @@ void updateProjection() {
   int projectionLocDigit = glGetUniformLocation(digitShader->ID, "Projection"); 
   glUniformMatrix4fv(projectionLocDigit, 1, GL_FALSE, glm::value_ptr(projection));
 
+}
+
+void resetViewport() { //set projection and 'view' to defaults
+    std::cout << " resetting viewport " << std::endl;
+    changeView(glm::vec2(0,0));
+    updateView();
+    changeProjection(1.0f);
+    updateProjection();
 }
 
 void record() 
@@ -994,32 +1072,14 @@ void processGUI() {
 
     bool scaleChanged = false;
     if ( viewportScaleSlider != viewportScale ) {
-
         scaleChanged = true;
-
-        viewportScale = std::max(MIN_VIEWPORT_SCALE,viewportScaleSlider);
-        viewportScale = std::min(MAX_VIEWPORT_SCALE,viewportScaleSlider);
-
-        //update projection
-        projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
-
+        changeProjection(viewportScaleSlider);
         updateProjection();
-
     }
 
     if ( scaleChanged || viewportCenterSlider != viewportCenter ) {
-
-        //scale changes require checking of the existing view port location
-        viewportCenterSlider.x = std::max(-viewportCenterRange(),viewportCenterSlider.x);
-        viewportCenterSlider.x = std::min(viewportCenterRange(),viewportCenterSlider.x);
-        viewportCenterSlider.y = std::max(-viewportCenterRange(),viewportCenterSlider.y);
-        viewportCenterSlider.y = std::min(viewportCenterRange(),viewportCenterSlider.y);
-
-        //update matrix
-        viewportCenter = viewportCenterSlider;
-        view = glm::translate(glm::mat4(1),glm::vec3(viewportCenter.x,viewportCenter.y,0));
+        changeView(viewportCenterSlider);
         updateView();
-
     }
 
     if ( lineThickness != lineThicknessSlider ) {
@@ -1036,15 +1096,7 @@ void processGUI() {
 
 
     if ( resetViewClicked ) {
-        std::cout << " resetting viewport " << std::endl;
-        viewportCenter.x = 0;
-        viewportCenter.y = 0;
-        viewportScale = 1.0f;
-
-        //update projection
-        projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
-        updateProjection();
-        updateView();
+        resetViewport();
     }
 
     if ( saveClicked ) {
@@ -1183,7 +1235,7 @@ void init() {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO(); (void)io;
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+  //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
   ImGui_ImplGlfw_InitForOpenGL(window, true);               // configure backends
   ImGui_ImplOpenGL3_Init(glsl_version);
   ImGui::StyleColorsDark();
@@ -1387,3 +1439,5 @@ void update() {
     }
 
 }
+
+
