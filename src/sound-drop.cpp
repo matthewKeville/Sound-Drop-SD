@@ -138,12 +138,15 @@ bool muteAudio = false;
 bool S_PRESSED = false;
 bool P_PRESSED = false;
 bool M_PRESSED = false;
+bool R_PRESSED = false;
+bool U_PRESSED = false;
 bool UP_PRESSED = false;
 bool DOWN_PRESSED = false;
 bool LEFT_PRESSED = false;
 bool RIGHT_PRESSED = false;
-// universal modifier key
+// modifier key
 bool ALT_PRESSED = false;
+bool L_CONTROL_PRESSED = false;
 
 
 //glfw key polling
@@ -244,17 +247,32 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 
 void processInput(GLFWwindow* window) {
 
-  //modifier key state tracking
+  // The order of key processing matters, that is these modifier keys
+  // need to be set to trigger key states below in this function
+
   if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS) {
     if (!ALT_PRESSED) {  // Toggle Play/Pause
       ALT_PRESSED = true;
-      std::cout << " mod key enabled " << std::endl;
+      std::cout << " mod key alt enabled " << std::endl;
     }
   }
   if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_RELEASE && ALT_PRESSED) {
-    std::cout << " mod key disabled " << std::endl;
+    std::cout << " mod key alt disabled " << std::endl;
     ALT_PRESSED = false;
   }
+
+  if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+    if (!L_CONTROL_PRESSED) {  // Toggle Play/Pause
+      L_CONTROL_PRESSED = true;
+      std::cout << " mod key control enabled " << std::endl;
+    }
+  }
+  if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_RELEASE && L_CONTROL_PRESSED) {
+    std::cout << " mod key control disabled " << std::endl;
+    L_CONTROL_PRESSED = false;
+  }
+
+  //////////////////////////////////////////////////
 
   if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
     if (!P_PRESSED) {  // Toggle Play/Pause
@@ -349,6 +367,30 @@ void processInput(GLFWwindow* window) {
     RIGHT_PRESSED = false;
   }
 
+  if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS) {
+    if (!U_PRESSED) { // undo 
+      U_PRESSED = true;
+      undo();
+    }
+  } 
+  if (glfwGetKey(window, GLFW_KEY_U) == GLFW_RELEASE) {
+    U_PRESSED = false;
+  }
+
+
+  if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+    if (!R_PRESSED) { // redo 
+      R_PRESSED = true;
+      if ( L_CONTROL_PRESSED ) { // undo
+        redo();
+      } else {
+        resetViewport();
+      }
+    }
+  } 
+  if (glfwGetKey(window, GLFW_KEY_R) == GLFW_RELEASE) {
+    R_PRESSED = false;
+  }
 
   if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
     if (!S_PRESSED) {
@@ -442,12 +484,6 @@ void processInput(GLFWwindow* window) {
     glfwSetWindowShouldClose(window,true);
   } 
 
-  ///////////////////////////////
-  //RESET Vew (r)
-  ///////////////////////////////
-  if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-    resetViewport();
-  } 
 
 
 }
@@ -513,12 +549,10 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     ///////////
     
     if (button == GLFW_MOUSE_BUTTON_4 && action == GLFW_PRESS) {
-      //std::cout << " undo " << std::endl;
       undo();
     }
 
     if (button == GLFW_MOUSE_BUTTON_5 && action == GLFW_PRESS) {
-      //std::cout << " redo " << std::endl;
       redo();
     }
 }
