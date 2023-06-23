@@ -38,9 +38,10 @@ int windowWidth;
 int windowHeight;
 GLFWwindow* window;
 glm::vec2 mouse; //glfw window coordinates : (0,windowWidth) x (0,windowHeight)
+const int vsync = 0;
 
 //OPENGL
-//const auto frameTarget = std::chrono::milliseconds(16);// ~60 fps
+const auto frameTarget = std::chrono::milliseconds(16);// ~60 fps (application logic)
 const float MAX_VIEWPORT_SCALE = 3.0f;
 const float MIN_VIEWPORT_SCALE = 1.0f;
 float viewportScale = MIN_VIEWPORT_SCALE;
@@ -208,10 +209,10 @@ int main() {
     std::cout << " frame time ms : " << frameTime_ms.count() << std::endl;
     std::cout << " clearance  ms: " << clearance_ms.count() << std::endl;
 
-    if ( clearance.count() > 0  ) {
+    if ( clearance.count() >= 0  ) {
       std::this_thread::sleep_for(clearance);
     } else {
-      std::cerr << "Warning : Can't keep up" << std::endl;
+      std::cerr << "Warning : Can't keep up" << clearance_ms.count() << std::endl;
     }
 
     glfwSwapBuffers(window); 
@@ -1172,6 +1173,10 @@ void init() {
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
   glfwSetMouseButtonCallback(window, mouse_button_callback);
   glfwSetCursorPosCallback(window, mouse_callback);
+
+  if (vsync) {
+    glfwSwapInterval(vsync);
+  }
 
   //create IMGUI context
   const char* glsl_version = "#version 330"; //IMGUI needs to know the glsl version
