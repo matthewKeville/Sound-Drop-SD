@@ -5,7 +5,7 @@
 #include <tuple> 
 #include <functional>
 #include <algorithm> //std::copy
-//#include <chrono> //sleep thread
+#include <chrono>    //sleep thread
 //Third Party
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -40,6 +40,7 @@ GLFWwindow* window;
 glm::vec2 mouse; //glfw window coordinates : (0,windowWidth) x (0,windowHeight)
 
 //OPENGL
+//const auto frameTarget = std::chrono::milliseconds(16);// ~60 fps
 const float MAX_VIEWPORT_SCALE = 3.0f;
 const float MIN_VIEWPORT_SCALE = 1.0f;
 float viewportScale = MIN_VIEWPORT_SCALE;
@@ -182,16 +183,39 @@ int main() {
   init();
   record();
 
+
   while(!glfwWindowShouldClose(window))
   {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
+    std::chrono::time_point<std::chrono::system_clock> frameStart = 
+        std::chrono::system_clock::now();
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
     processIO();
     update();
     draw();
     processGUI();
 
+    std::chrono::time_point<std::chrono::system_clock> frameEnd = 
+        std::chrono::system_clock::now();
+
+    auto frameTime = frameEnd - frameStart;
+    auto frameTime_ms = std::chrono::duration_cast<std::chrono::milliseconds>(frameTime);
+
+    auto clearance = frameTarget - frameTime;
+    auto clearance_ms = std::chrono::duration_cast<std::chrono::milliseconds>(clearance);
+
+    std::cout << " frame time ms : " << frameTime_ms.count() << std::endl;
+    std::cout << " clearance  ms: " << clearance_ms.count() << std::endl;
+
+    if ( clearance.count() > 0  ) {
+      std::this_thread::sleep_for(clearance);
+    } else {
+      std::cerr << "Warning : Can't keep up" << std::endl;
+    }
+
     glfwSwapBuffers(window); 
+
   }
 
   //release glfw resources
