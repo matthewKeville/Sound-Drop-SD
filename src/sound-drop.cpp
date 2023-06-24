@@ -30,6 +30,12 @@
 #include "SaveState.h"
 #include "StateStack.h"
 
+#if defined DEV_BUILD
+  const std::string RES_PATH = "./res";
+#else
+  const std::string RES_PATH = "/usr/local/share/sound-drop-sd/res";
+#endif
+
 const int MAX_LINES = 50;
 const int MAX_BALLS = 300; 
 
@@ -1179,18 +1185,18 @@ void init() {
   soloud.setGlobalVolume(GLOBAL_DEFAULT_VOLUME);
   soloud.setMaxActiveVoiceCount(MAX_VOICE_COUNT);
   // audio samples
-  sampleData.push_back({"res/marimba.wav",44100});
-  sampleData.push_back({"res/clipped/sine_440hz_44100_100ms.wav",44100});
+  sampleData.push_back({RES_PATH+"/audio/marimba.wav",44100});
+  sampleData.push_back({RES_PATH+"/audio/clipped/sine_440hz_44100_100ms.wav",44100});
   //new (not sure if sample rates are accurate)
-  sampleData.push_back({"res/bass-d.wav",44100});
-  sampleData.push_back({"res/break-glass.wav",44100});
-  sampleData.push_back({"res/chime-a.wav",44100});
-  sampleData.push_back({"res/emu.wav",44100});
-  sampleData.push_back({"res/kalimba.wav",44100});
-  sampleData.push_back({"res/laz6.wav",44100});
-  sampleData.push_back({"res/sneeze.wav",44100});
-  sampleData.push_back({"res/toy-piano-g.wav",44100});
-  sampleData.push_back({"res/xylophone.wav",44100});
+  sampleData.push_back({RES_PATH+"/audio/bass-d.wav",44100});
+  sampleData.push_back({RES_PATH+"/audio/break-glass.wav",44100});
+  sampleData.push_back({RES_PATH+"/audio/chime-a.wav",44100});
+  sampleData.push_back({RES_PATH+"/audio/emu.wav",44100});
+  sampleData.push_back({RES_PATH+"/audio/kalimba.wav",44100});
+  sampleData.push_back({RES_PATH+"/audio/laz6.wav",44100});
+  sampleData.push_back({RES_PATH+"/audio/sneeze.wav",44100});
+  sampleData.push_back({RES_PATH+"/audio/toy-piano-g.wav",44100});
+  sampleData.push_back({RES_PATH+"/audio/xylophone.wav",44100});
   sampleIndex = 0;
   updateSample();
 
@@ -1292,7 +1298,7 @@ void init() {
   glGenTextures(10,digitTextures);
   for ( int i = 0; i < 10; i++ ) {
     int width, height, nChannels;
-    std::string path = "res/textures/digits/digit" + std::to_string(i) + ".png";
+    std::string path = RES_PATH+"/textures/digits/digit" + std::to_string(i) + ".png";
     unsigned char *data = stbi_load(path.c_str(), &width, &height, &nChannels, 0);
     if ( ! data ) {
       std::cout << "error loading texture " << path << std::endl;
@@ -1305,9 +1311,9 @@ void init() {
 
   //construct shader programs
 
-  digitShader = new Shader("shaders/digit.vs","shaders/digit.fs");
-  lineShader = new Shader("shaders/line.vs","shaders/line.fs");
-  ballShader = new Shader("shaders/ball.vs","shaders/line.fs");
+  digitShader = new Shader((RES_PATH+"/shaders/digit.vs").c_str(),(RES_PATH+"/shaders/digit.fs").c_str());
+  lineShader = new Shader((RES_PATH+"/shaders/line.vs").c_str(),(RES_PATH+"/shaders/line.fs").c_str());
+  ballShader = new Shader((RES_PATH+"/shaders/ball.vs").c_str(),(RES_PATH+"/shaders/line.fs").c_str());
 
   //digitShader
   float digitVertexData[30] = {
