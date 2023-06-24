@@ -1,8 +1,8 @@
-SOLOUD_HEADERS = /home/galaxy/code/foss/soloud/include
-SOLOUD_SO = /home/galaxy/code/foss/soloud/lib/
-SOLOUD_A = /home/galaxy/code/foss/soloud/lib/
+SOLOUD_HEADERS = ./soloud/include
+SOLOUD_SO = ./soloud/lib/
+SOLOUD_A = ./soloud/lib/
 
-IMGUI_DIR = imgui
+IMGUI_DIR = ./imgui
 IMGUI_SOURCES =  $(IMGUI_DIR)/imgui.cpp  $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp 
 IMGUI_SOURCES += $(IMGUI_DIR)/imgui_widgets.cpp
 IMGUI_SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
