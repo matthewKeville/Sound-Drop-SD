@@ -1,0 +1,48 @@
+SOLOUD_HEADERS = ./soloud/include
+SOLOUD_SO = ./soloud/lib/
+SOLOUD_A = ./soloud/lib/
+
+IMGUI_DIR = ./imgui
+IMGUI_SOURCES =  $(IMGUI_DIR)/imgui.cpp  $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp 
+IMGUI_SOURCES += $(IMGUI_DIR)/imgui_widgets.cpp
+IMGUI_SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
+
+GLFW_HEADERS = ./glfw.3.3.8/build/native/include/
+GLFW_LIB = ./glfw.3.3.8/build/native/lib/static/v143/x64/
+
+STDLIB=C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\lib\gcc\x86_64-w64-mingw32\12.2.0
+
+#COMPILER=clang++
+COMPILER=g++
+
+DEV_BUILD_FLAGS=-DDEV_BUILD
+
+STD=c++17
+
+default: build/sound-drop.exe 
+
+build/sound-drop.exe:
+	powershell mkdir -Force .\build
+	$(COMPILER) $(DEV_BUILD_FLAGS) -g -Wall -Wextra  -I./include/ -I$(SOLOUD_HEADERS) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends -I$(GLFW_HEADERS) -L$(SOLOUD_A) -L$(GLFW_LIB) -L$(STD_LIB) src/glad.c src/stb_image.cpp src/sound-drop.cpp src/Line.cpp src/Ball.cpp src/util.cpp src/Spawner.cpp src/Interactable.cpp src/SaveState.cpp src/StateStack.cpp $(IMGUI_SOURCES) -o build/sound-drop.exe -lglfw3 -lopengl32 -lsoloud_static -lstdc++
+
+
+clean : 
+	powershell Remove-Item -Force -Recurse build
+	powershell rm -Force -Recurse release
+
+
+install: build/sound-drop-release.exe
+	powershell Write-Host "No installation for windows yet"
+
+
+build/sound-drop-release.exe:
+	powershell mkdir -Force ./build
+	$(COMPILER) -std=$(STD) -g -Wall -Wextra  -I./include/ -I$(SOLOUD_HEADERS) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends -L$(SOLOUD_A)  src/glad.c src/stb_image.cpp src/sound-drop.cpp src/Line.cpp src/Ball.cpp src/util.cpp src/Spawner.cpp src/Interactable.cpp src/SaveState.cpp src/StateStack.cpp $(IMGUI_SOURCES) -o build/sound-drop-release.exe -lglfw -lGL -lsoloud_static -lasound
+
+
+remove:
+	powershell Write-Host "Nothing to remove"
+
+
+run : build/sound-drop.exe
+	./build/sound-drop.exe

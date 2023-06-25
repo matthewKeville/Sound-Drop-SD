@@ -141,7 +141,8 @@ void Spawner::updateModelMatrix() {
   this->model = glm::scale(baseModel,this->radius * glm::vec3(1));
 
   //the spawner scale indicator will be render 30 degrees above the spawner
-  float angle = M_PI/60; //30 degrees
+  //float angle = M_PI/60; //30 degrees
+  float angle = 3.14f/60; //30 degrees
   float r = 0.05f;
   float digitScale = 0.040f;
   float aspect = 0.5f;
