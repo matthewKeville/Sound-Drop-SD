@@ -36,6 +36,10 @@
   const std::string RES_PATH = "/usr/local/share/sound-drop-sd/res";
 #endif
 
+//msvc comilation resolution
+const int MAX_SAMPLES = 30;
+const int MAX_SCALES = 30;
+
 const int MAX_LINES = 50;
 const int MAX_BALLS = 300; 
 
@@ -670,10 +674,10 @@ bool testLineSegmentIntersection(float xa0,float ya0,float xaf,float yaf,float x
     solvey = ma * (solvex - xa0) + ya0;
 
     //now we check if solx is in the intersection of our segments x domains
-    float axmin = std::min(xa0,xaf);
-    float axmax = std::max(xa0,xaf);
-    float bxmin = std::min(xb0,xbf);
-    float bxmax = std::max(xb0,xbf);
+    float axmin = min(xa0,xaf);
+    float axmax = max(xa0,xaf);
+    float bxmin = min(xb0,xbf);
+    float bxmax = max(xb0,xbf);
 
     bool xOk = solvex >= axmin && solvex <= axmax 
       && solvex >= bxmin && solvex <= bxmax;
@@ -681,10 +685,10 @@ bool testLineSegmentIntersection(float xa0,float ya0,float xaf,float yaf,float x
     if (xOk) {
 
       //same for y domains
-      float aymin = std::min(ya0,yaf);
-      float aymax = std::max(ya0,yaf);
-      float bymin = std::min(yb0,ybf);
-      float bymax = std::max(yb0,ybf);
+      float aymin = min(ya0,yaf);
+      float aymax = max(ya0,yaf);
+      float bymin = min(yb0,ybf);
+      float bymax = max(yb0,ybf);
 
       bool yOk =  solvey >= aymin && solvey <= aymax 
             && solvey >= bymin && solvey <= bymax;
@@ -731,8 +735,8 @@ float toDegrees(float radians) {
 void play_bounce_audio(Line* lp) {
   int handle = soloud.play(*sample);
   float pan = lp->getPosition().x / MAX_VIEWPORT_SCALE;
-  pan = std::min(pan,1.0f);
-  pan = std::max(pan,-1.f);
+  pan = min(pan,1.0f);
+  pan = max(pan,-1.f);
   soloud.setPan(handle,pan);
   int playback_rate = keville::util::semitone_adjusted_rate(SAMPLE_BASE_RATE,lp->semitone);
   soloud.setSamplerate(handle,playback_rate);
@@ -912,17 +916,17 @@ void updateView() {
 
 //
 void changeView(glm::vec2 newCenter) {
-    newCenter.x = std::max(-viewportCenterRange(),newCenter.x);
-    newCenter.x = std::min(viewportCenterRange(),newCenter.x);
-    newCenter.y = std::max(-viewportCenterRange(),newCenter.y);
-    newCenter.y = std::min(viewportCenterRange(),newCenter.y);
+    newCenter.x = max(-viewportCenterRange(),newCenter.x);
+    newCenter.x = min(viewportCenterRange(),newCenter.x);
+    newCenter.y = max(-viewportCenterRange(),newCenter.y);
+    newCenter.y = min(viewportCenterRange(),newCenter.y);
     viewportCenter = newCenter;
     view = glm::translate(glm::mat4(1),glm::vec3(viewportCenter.x,viewportCenter.y,0));
 }
 
 void changeProjection(float scale) {
-    viewportScale = std::max(MIN_VIEWPORT_SCALE, scale);
-    viewportScale = std::min(MAX_VIEWPORT_SCALE, viewportScale);
+    viewportScale = max(MIN_VIEWPORT_SCALE, scale);
+    viewportScale = min(MAX_VIEWPORT_SCALE, viewportScale);
     projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
     std::cout << " current viewport scale is " << viewportScale << std::endl;
 }
@@ -1013,7 +1017,8 @@ void processGUI() {
     ImGui::Begin("Audio Sample Loader");                         
 
     int guiSelectedSampleIndex = sampleIndex;
-    const char* sampleNames[sampleData.size()];
+    //const char* sampleNames[sampleData.size()]; //expression did not evaluate to a const
+    const char* sampleNames[MAX_SAMPLES/*previously sampleData.size() but msvc yells at me*/]; 
     for ( size_t i = 0; i < sampleData.size(); i++ ) {
         sampleNames[i] = std::get<0>(sampleData[i]).c_str();
     }
@@ -1024,7 +1029,8 @@ void processGUI() {
 
     int guiSelectedScaleIndex = scaleIndex;
     //const char* scaleNames[scaleData.size()] = {} ;
-    const char* scaleNames[scaleData.size()];
+    //const char* scaleNames[scaleData.size()]; //expresssion didn't evaluate to a const
+    const char* scaleNames[MAX_SCALES];
     for ( size_t i = 0; i < scaleData.size(); i++ ) {
         scaleNames[i] = std::get<0>(scaleData[i]).c_str();
     }
@@ -1102,8 +1108,8 @@ void processGUI() {
     }
 
     if ( audioSlider != soloud.getGlobalVolume() ) {
-        audioSlider = std::max(GLOBAL_MIN_VOLUME,audioSlider);
-        audioSlider = std::min(GLOBAL_MAX_VOLUME,audioSlider);
+        audioSlider = max(GLOBAL_MIN_VOLUME,audioSlider);
+        audioSlider = min(GLOBAL_MAX_VOLUME,audioSlider);
         soloud.setGlobalVolume(audioSlider);
     }
 
@@ -1124,8 +1130,8 @@ void processGUI() {
 
     if ( lineThickness != lineThicknessSlider ) {
         lineShader->use();
-        lineThickness = std::max(MIN_LINE_THICKNESS,lineThicknessSlider);
-        lineThickness = std::min(MAX_LINE_THICKNESS,lineThicknessSlider);
+        lineThickness = max(MIN_LINE_THICKNESS,lineThicknessSlider);
+        lineThickness = min(MAX_LINE_THICKNESS,lineThicknessSlider);
         //update Thicken matrix
         thicken = glm::scale(glm::mat4(1),glm::vec3(1,lineThickness,1));
         //update uniform

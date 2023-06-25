@@ -4,4 +4,4 @@ imgui.ini
 release
 .cache
 compile_commands.json
-
+*.obj

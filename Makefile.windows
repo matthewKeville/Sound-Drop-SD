@@ -8,41 +8,30 @@ IMGUI_SOURCES += $(IMGUI_DIR)/imgui_widgets.cpp
 IMGUI_SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
 
 GLFW_HEADERS = ./glfw.3.3.8/build/native/include/
-GLFW_LIB = ./glfw.3.3.8/build/native/lib/static/v143/x64/
+#GLFW_LIB = ./glfw.3.3.8/build/native/lib/static/v143/x64/
+GLFW_LIB = ./glfw.3.3.8/build/native/lib/static/v143/win32/
 
-STDLIB=C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\lib\gcc\x86_64-w64-mingw32\12.2.0
+#STDLIB=C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\lib\gcc\x86_64-w64-mingw32\12.2.0
+OPENGL_LIB=C:\Windows\System32\opengl32.dll
 
 #COMPILER=clang++
-COMPILER=g++
-
-DEV_BUILD_FLAGS=-DDEV_BUILD
+#COMPILER=g++
+COMPILER=cl
+#COMPILER="C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.36.32532\bin\Hostx64\x64\cl.exe"
 
 STD=c++17
+
+#WINLIBS=user32.lib gdi32.lib shell32.lib vcruntime.lib msvcrt.lib
+WINLIBS=gdi32.lib shell32.lib vcruntime.lib msvcrt.lib
 
 default: build/sound-drop.exe 
 
 build/sound-drop.exe:
 	powershell mkdir -Force .\build
-	$(COMPILER) $(DEV_BUILD_FLAGS) -g -Wall -Wextra  -I./include/ -I$(SOLOUD_HEADERS) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends -I$(GLFW_HEADERS) -L$(SOLOUD_A) -L$(GLFW_LIB) -L$(STD_LIB) src/glad.c src/stb_image.cpp src/sound-drop.cpp src/Line.cpp src/Ball.cpp src/util.cpp src/Spawner.cpp src/Interactable.cpp src/SaveState.cpp src/StateStack.cpp $(IMGUI_SOURCES) -o build/sound-drop.exe -lglfw3 -lopengl32 -lsoloud_static -lstdc++
+	$(COMPILER) /D"DEV_BUILD" /EHsc /W2 /std:c++17 /I./include/ /I$(SOLOUD_HEADERS) /I$(IMGUI_DIR) /I$(IMGUI_DIR)/backends /I$(GLFW_HEADERS) src/glad.c src/stb_image.cpp src/sound-drop.cpp src/Line.cpp src/Ball.cpp src/util.cpp src/Spawner.cpp src/Interactable.cpp src/SaveState.cpp src/StateStack.cpp $(IMGUI_SOURCES) -o build/sound-drop.exe  /link /LIBPATH:"$(GLFW_LIB)" /LIBPATH:"$(SOLOUD_A)" /LIBPATH:"$(OPENGL_LIB)"  opengl32.lib glfw3.lib soloud_static.lib $(WINLIBS)
 
 
-clean : 
+clean:
 	powershell Remove-Item -Force -Recurse build
 	powershell rm -Force -Recurse release
 
-
-install: build/sound-drop-release.exe
-	powershell Write-Host "No installation for windows yet"
-
-
-build/sound-drop-release.exe:
-	powershell mkdir -Force ./build
-	$(COMPILER) -std=$(STD) -g -Wall -Wextra  -I./include/ -I$(SOLOUD_HEADERS) -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends -L$(SOLOUD_A)  src/glad.c src/stb_image.cpp src/sound-drop.cpp src/Line.cpp src/Ball.cpp src/util.cpp src/Spawner.cpp src/Interactable.cpp src/SaveState.cpp src/StateStack.cpp $(IMGUI_SOURCES) -o build/sound-drop-release.exe -lglfw -lGL -lsoloud_static -lasound
-
-
-remove:
-	powershell Write-Host "Nothing to remove"
-
-
-run : build/sound-drop.exe
-	./build/sound-drop.exe
