@@ -6,6 +6,8 @@
 #include <functional>
 #include <algorithm> //std::copy
 #include <chrono>    //sleep thread
+#include <filesystem>
+#include <regex>
 //Third Party
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -179,6 +181,10 @@ void changeProjection(float); //update internal view representation
 void resetViewport();                             
 
 void init();
+void generateSampleData();
+void generateScaleData();
+bool validateWavFile(std::filesystem::directory_entry);
+void shutdown();
 
 //render loop abstractions
 void update();
@@ -230,16 +236,14 @@ int main() {
     if ( clearance.count() >= 0  ) {
       std::this_thread::sleep_for(clearance);
     } else {
-      std::cerr << "Warning : Can't keep up" << clearance_ms.count() << std::endl;
+      //std::cerr << "Warning : Can't keep up" << clearance_ms.count() << std::endl;
     }
 
     glfwSwapBuffers(window); 
 
   }
 
-  //release glfw resources
-  glfwTerminate();
-  soloud.deinit();
+  shutdown();
   return 0;
 
 }
@@ -706,11 +710,10 @@ void updateSample() {
   std::string name = std::get<0>(sampleData[sampleIndex]);
   unsigned int freq = std::get<1>(sampleData[sampleIndex]);
   std::cout << "loaded new sample : " << name << std::endl;
-  delete sample;
-  sample = new SoLoud::Wav;
-  sample->load(name.c_str()); 
-  //adjust all lines so that they use the new sample's frequency
-  SAMPLE_BASE_RATE = freq; }
+  soloud.stopAll(); /* undefined behaviour if we load while sample is being played*/
+  sample->load(name.c_str());  /*soloud assumes this file will work i.e. not feedback*/
+  SAMPLE_BASE_RATE = freq; 
+}
 
 void updateScale() {
   auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
@@ -1017,7 +1020,15 @@ void processGUI() {
         for (size_t i = 0; i < sampleData.size(); i++) {
             const bool alreadySelected = ( (size_t) guiSelectedSampleIndex == i );
             auto sample = sampleData[i];
-            std::string name =  std::get<0>(sample);
+            std::string sampleName =  std::get<0>(sample);
+            std::string name = "Unknown";
+            std::regex namePat {R"(\w*\.wav$)"}; 
+            // match file.wav from ./file/path/file.wav
+            std::smatch matches;
+            if (regex_search(sampleName,matches,namePat)) {
+                name = matches[0];
+            }
+            
             if (ImGui::Selectable(name.c_str(), alreadySelected))
             {
                 guiSelectedSampleIndex = i;
@@ -1191,67 +1202,12 @@ void init() {
   soloud.init();
   soloud.setGlobalVolume(GLOBAL_DEFAULT_VOLUME);
   soloud.setMaxActiveVoiceCount(MAX_VOICE_COUNT);
-  // audio samples
-  sampleData.push_back({RES_PATH+"/audio/marimba.wav",44100});
-  sampleData.push_back({RES_PATH+"/audio/clipped/sine_440hz_44100_100ms.wav",44100});
-  //new (not sure if sample rates are accurate)
-  sampleData.push_back({RES_PATH+"/audio/bass-d.wav",44100});
-  sampleData.push_back({RES_PATH+"/audio/break-glass.wav",44100});
-  sampleData.push_back({RES_PATH+"/audio/chime-a.wav",44100});
-  sampleData.push_back({RES_PATH+"/audio/emu.wav",44100});
-  sampleData.push_back({RES_PATH+"/audio/kalimba.wav",44100});
-  sampleData.push_back({RES_PATH+"/audio/laz6.wav",44100});
-  sampleData.push_back({RES_PATH+"/audio/sneeze.wav",44100});
-  sampleData.push_back({RES_PATH+"/audio/toy-piano-g.wav",44100});
-  sampleData.push_back({RES_PATH+"/audio/xylophone.wav",44100});
-  sampleIndex = 0;
-  updateSample();
+  sample = new SoLoud::Wav;
+ 
+  // These names gotta change..
+  generateSampleData();
+  generateScaleData();
 
-  // musical scales
-  scaleData.push_back({"Major",
-      [] (float width) {
-        return keville::util::line_width_to_semitone_linear_major(width,12); 
-      },
-      [] (int semitones) {
-        return keville::util::semitone_color_chromatic(semitones);
-      }});
-  scaleData.push_back({"Major Pentatonic",
-      [] (float width) {
-        return keville::util::line_width_to_semitone_linear_major_pentatonic(width,12); 
-      },
-      [] (int semitones) {
-        return keville::util::semitone_color_chromatic(semitones);
-      }});
-  scaleData.push_back({"Minor",
-      [] (float width) {
-        return keville::util::line_width_to_semitone_linear_minor(width,12); 
-      },
-      [] (int semitones) {
-        return keville::util::semitone_color_chromatic(semitones);
-      }});
-  scaleData.push_back({"Minor Pentatonic",
-      [] (float width) {
-        return keville::util::line_width_to_semitone_linear_minor_pentatonic(width,12); 
-      },
-      [] (int semitones) {
-        return keville::util::semitone_color_chromatic(semitones);
-      }});
-  scaleData.push_back({"Blues",
-      [] (float width) {
-        return keville::util::line_width_to_semitone_linear_blues(width,12); 
-      },
-      [] (int semitones) {
-        return keville::util::semitone_color_chromatic(semitones);
-      }});
-  scaleData.push_back({"Chromatic",
-      [] (float width) {
-        return keville::util::line_width_to_semitone_linear_chromatic(width,12); 
-      },
-      [] (int semitones) {
-        return keville::util::semitone_color_chromatic(semitones);
-      }});
-  scaleIndex = 0;
-  updateScale();
 
   //initialize glfw
   glfwInit();
@@ -1282,8 +1238,7 @@ void init() {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO(); (void)io;
-  //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-  ImGui_ImplGlfw_InitForOpenGL(window, true);               // configure backends
+  ImGui_ImplGlfw_InitForOpenGL(window, true);                 // configure backends
   ImGui_ImplOpenGL3_Init(glsl_version);
   ImGui::StyleColorsDark();
 
@@ -1480,11 +1435,103 @@ void update() {
     }
     }
 
-    //balls
     if (!pausePhysics) {
       update_balls();
     }
 
 }
 
+void generateScaleData() {
+  // musical scales
+  scaleData.push_back({"Major",
+      [] (float width) {
+        return keville::util::line_width_to_semitone_linear_major(width,12); 
+      },
+      [] (int semitones) {
+        return keville::util::semitone_color_chromatic(semitones);
+      }});
+  scaleData.push_back({"Major Pentatonic",
+      [] (float width) {
+        return keville::util::line_width_to_semitone_linear_major_pentatonic(width,12); 
+      },
+      [] (int semitones) {
+        return keville::util::semitone_color_chromatic(semitones);
+      }});
+  scaleData.push_back({"Minor",
+      [] (float width) {
+        return keville::util::line_width_to_semitone_linear_minor(width,12); 
+      },
+      [] (int semitones) {
+        return keville::util::semitone_color_chromatic(semitones);
+      }});
+  scaleData.push_back({"Minor Pentatonic",
+      [] (float width) {
+        return keville::util::line_width_to_semitone_linear_minor_pentatonic(width,12); 
+      },
+      [] (int semitones) {
+        return keville::util::semitone_color_chromatic(semitones);
+      }});
+  scaleData.push_back({"Blues",
+      [] (float width) {
+        return keville::util::line_width_to_semitone_linear_blues(width,12); 
+      },
+      [] (int semitones) {
+        return keville::util::semitone_color_chromatic(semitones);
+      }});
+  scaleData.push_back({"Chromatic",
+      [] (float width) {
+        return keville::util::line_width_to_semitone_linear_chromatic(width,12); 
+      },
+      [] (int semitones) {
+        return keville::util::semitone_color_chromatic(semitones);
+      }});
+  scaleIndex = 0;
+  updateScale();
+}
 
+
+
+/* not a great method name, nor is sampleData indicative of what it
+ * stores i.e sample file paths & frequencies ...
+ */
+void generateSampleData() {
+
+  using namespace std::filesystem;
+
+  std::regex wavPattern {R"(.*\.wav$)"};
+  path res {RES_PATH+"/audio"};
+
+  try {
+    if (is_directory(res)) {
+      for ( const directory_entry& x : directory_iterator{res}) {
+          std::string filePathName = x.path().string();
+          if ( is_regular_file(x) && std::regex_match(filePathName,wavPattern)) {
+            if (validateWavFile(x)) {
+              sampleData.push_back({x.path().string(),44100});
+            }
+          }
+      }
+    }
+  } catch (const filesystem_error& err) {
+    std::cout << "Error Loading Samples " << std::endl;
+  }
+
+  if (!sampleData.size()) shutdown();
+  sampleIndex = 0;
+  updateSample();
+
+}
+
+/* soloud provides no means of validating a sample loaded
+ * with sample.load, therefore it's up to me to figure out
+ * if the data i'm trying to load is valid 
+ */
+bool validateWavFile(std::filesystem::directory_entry) {
+  /* stub for implementation */
+  return true;
+}
+
+void shutdown() {
+  glfwTerminate();
+  soloud.deinit();
+}
