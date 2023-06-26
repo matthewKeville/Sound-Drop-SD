@@ -7,7 +7,6 @@
 #include <algorithm> //std::copy
 #include <chrono>    //sleep thread
 #include <filesystem>
-#include <regex>
 //Third Party
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -183,7 +182,7 @@ void resetViewport();
 void init();
 void generateSampleData();
 void generateScaleData();
-bool validateWavFile(std::filesystem::directory_entry);
+bool validateWavFile(std::filesystem::path);
 void shutdown();
 
 //render loop abstractions
@@ -1018,18 +1017,11 @@ void processGUI() {
     ImGui::BeginListBox("Sample Picker");
         int guiSelectedSampleIndex = sampleIndex;
         for (size_t i = 0; i < sampleData.size(); i++) {
+            /* This conversion would be circumvented if sampleData stored paths which is more appropriate */
             const bool alreadySelected = ( (size_t) guiSelectedSampleIndex == i );
-            auto sample = sampleData[i];
-            std::string sampleName =  std::get<0>(sample);
-            std::string name = "Unknown";
-            std::regex namePat {R"(\w*\.wav$)"}; 
-            // match file.wav from ./file/path/file.wav
-            std::smatch matches;
-            if (regex_search(sampleName,matches,namePat)) {
-                name = matches[0];
-            }
-            
-            if (ImGui::Selectable(name.c_str(), alreadySelected))
+            std::filesystem::path samplePath {std::get<0>(sampleData[i])};
+            const char* sampleName = samplePath.filename().c_str();
+            if (ImGui::Selectable(sampleName, alreadySelected))
             {
                 guiSelectedSampleIndex = i;
             }
@@ -1498,16 +1490,14 @@ void generateSampleData() {
 
   using namespace std::filesystem;
 
-  std::regex wavPattern {R"(.*\.wav$)"};
   path res {RES_PATH+"/audio"};
 
   try {
     if (is_directory(res)) {
-      for ( const directory_entry& x : directory_iterator{res}) {
-          std::string filePathName = x.path().string();
-          if ( is_regular_file(x) && std::regex_match(filePathName,wavPattern)) {
+      for ( const path& x : directory_iterator{res}) {
+          if ( is_regular_file(x) && x.extension() == ".wav") {
             if (validateWavFile(x)) {
-              sampleData.push_back({x.path().string(),44100});
+              sampleData.push_back({x.string(),44100});
             }
           }
       }
@@ -1526,7 +1516,7 @@ void generateSampleData() {
  * with sample.load, therefore it's up to me to figure out
  * if the data i'm trying to load is valid 
  */
-bool validateWavFile(std::filesystem::directory_entry) {
+bool validateWavFile(std::filesystem::path) {
   /* stub for implementation */
   return true;
 }
