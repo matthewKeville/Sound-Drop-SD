@@ -67,6 +67,11 @@ void Spawner::draw() {
   glBindBuffer(GL_ARRAY_BUFFER,*this->digitVbo);
   glBindVertexArray(*this->digitVao); 
 
+  //Without this, transparency doesn't work. I don't really know what this is yet
+  //https://www.reddit.com/r/opengl/comments/5ups85/struggling_with_png_transparency_via_stb_image/
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
   glDrawArrays(GL_TRIANGLES, 0, 6);
 
   //digits
