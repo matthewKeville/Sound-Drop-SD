@@ -38,8 +38,6 @@
 
 const int MAX_LINES = 50;
 const int MAX_BALLS = 300; 
-const int MAX_SCALES = 10; //arbitrary
-const int MAX_SAMPLES = 10; 
 
 //GLFW
 int windowWidth;                
@@ -49,8 +47,8 @@ glm::vec2 mouse; //glfw window coordinates : (0,windowWidth) x (0,windowHeight)
 const int vsync = 0;
 
 //OPENGL
-//const auto frameTarget = std::chrono::milliseconds(16);// ~60 fps (application logic)
-const auto frameTarget = std::chrono::milliseconds(32);// ~30 fps (application logic)
+const auto frameTarget = std::chrono::milliseconds(16);// ~60 fps (application logic)
+//const auto frameTarget = std::chrono::milliseconds(32);// ~30 fps (application logic)
 const float MAX_VIEWPORT_SCALE = 3.0f;
 const float MIN_VIEWPORT_SCALE = 1.0f;
 float viewportScale = MIN_VIEWPORT_SCALE;
@@ -1014,25 +1012,33 @@ void processGUI() {
     ImGui::SetNextWindowSize(ImVec2(400.0f,20.0f),ImGuiCond_FirstUseEver); //likewise, we can resize with the enum 
     ImGui::Begin("Audio Sample Loader");                         
 
-    int guiSelectedSampleIndex = sampleIndex;
-    const char* sampleNames[MAX_SAMPLES];
-    for ( size_t i = 0; i < sampleData.size(); i++ ) {
-        sampleNames[i] = std::get<0>(sampleData[i]).c_str();
-    }
+    ImGui::BeginListBox("Sample Picker");
+        int guiSelectedSampleIndex = sampleIndex;
+        for (size_t i = 0; i < sampleData.size(); i++) {
+            const bool alreadySelected = ( (size_t) guiSelectedSampleIndex == i );
+            auto sample = sampleData[i];
+            std::string name =  std::get<0>(sample);
+            if (ImGui::Selectable(name.c_str(), alreadySelected))
+            {
+                guiSelectedSampleIndex = i;
+            }
+        }
+    ImGui::EndListBox();
 
-    if(ImGui::CollapsingHeader("Audio Sample Loader")) {
-        ImGui::ListBox("Sample", &guiSelectedSampleIndex, sampleNames , IM_ARRAYSIZE(sampleNames), 5);
-    }
 
-    int guiSelectedScaleIndex = scaleIndex;
-    const char* scaleNames[MAX_SCALES];
-    for ( size_t i = 0; i < scaleData.size(); i++ ) {
-        scaleNames[i] = std::get<0>(scaleData[i]).c_str();
-    }
+    ImGui::BeginListBox("Scale Picker");
+        int guiSelectedScaleIndex = scaleIndex;
+        for (size_t i = 0; i < scaleData.size(); i++) {
+            const bool alreadySelected = ( (size_t) guiSelectedScaleIndex == i );
+            auto scale = scaleData[i];
+            std::string name =  std::get<0>(scale);
+            if (ImGui::Selectable(name.c_str(), alreadySelected))
+            {
+                guiSelectedScaleIndex = i;
+            }
+        }
+    ImGui::EndListBox();
 
-    if(ImGui::CollapsingHeader("Scale Picker")) {
-        ImGui::ListBox("Scale", &guiSelectedScaleIndex, scaleNames , IM_ARRAYSIZE(scaleNames), 5);
-    }
 
     float audioSlider = soloud.getGlobalVolume();
     if(ImGui::CollapsingHeader("Volume")) {
