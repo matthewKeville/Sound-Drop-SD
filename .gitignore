@@ -5,4 +5,3 @@ release
 .cache
 compile_commands.json
 *.obj
-showcase/*
