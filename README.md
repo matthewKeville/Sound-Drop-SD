@@ -1,6 +1,10 @@
-# sound drip
+# sound drop sd
 
 > A physics based beat synthesizer inspired by the original IOS application **Sound Drop** by **Develoe**
+
+
+[<img src="showcase/snap1.png" width="300" />](showcase/snap1.png)
+[<img src="showcase/snap2.png" width="300" />](showcase/snap2.png)
 
 Features
 
