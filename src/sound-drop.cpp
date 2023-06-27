@@ -81,7 +81,9 @@ unsigned int ballVao;
 unsigned int ballVbo;
 float* ballVertices;
                      
-double ballGravity =  -0.0002f;
+const double GRAVITY_BASE =  -0.0002f;
+double ballGravityScale = 0;
+double ballGravity = GRAVITY_BASE;
 double collisionRestitution = 0.95f;
 std::vector<Ball*> balls;
                                                    
@@ -1010,37 +1012,47 @@ void processGUI() {
 
     ImGuiIO& io = ImGui::GetIO(); (void)io;
 
-    ImGui::SetNextWindowPos(ImVec2(windowWidth-(windowWidth/6),40.0f),ImGuiCond_FirstUseEver); //Enum FirstUseEver allows us to move this window (otherwise it's locked)
-    ImGui::SetNextWindowSize(ImVec2(400.0f,20.0f),ImGuiCond_FirstUseEver); //likewise, we can resize with the enum 
-    ImGui::Begin("Audio Sample Loader");                         
+    const float imguiWindowWidth = 200.0f;
+    const float imguiWindowHeight = 800.0f;
+    ImGui::SetNextWindowPos(ImVec2(windowWidth-imguiWindowWidth,0),ImGuiCond_FirstUseEver); //Enum FirstUseEver allows us to move this window (otherwise it's locked)
+    ImGui::SetNextWindowSize(ImVec2(imguiWindowWidth,imguiWindowHeight),ImGuiCond_FirstUseEver); //likewise, we can resize with the enum 
+    //ImGui::Begin("Options");                         
+    ImGui::Begin("Options",nullptr,ImGuiWindowFlags_AlwaysAutoResize);                         
 
-    ImGui::BeginListBox("Sample Picker");
-        int guiSelectedSampleIndex = sampleIndex;
-        for (size_t i = 0; i < sampleData.size(); i++) {
-            /* This conversion would be circumvented if sampleData stored paths which is more appropriate */
-            const bool alreadySelected = ( (size_t) guiSelectedSampleIndex == i );
-            std::filesystem::path samplePath {std::get<0>(sampleData[i])};
-            const char* sampleName = samplePath.filename().c_str();
-            if (ImGui::Selectable(sampleName, alreadySelected))
-            {
-                guiSelectedSampleIndex = i;
+
+    int guiSelectedSampleIndex = sampleIndex;
+    if(ImGui::CollapsingHeader("Sample")) {
+        if (ImGui::BeginListBox("Sample Picker")) {
+            for (size_t i = 0; i < sampleData.size(); i++) {
+                /* This conversion would be circumvented if sampleData stored paths which is more appropriate */
+                const bool alreadySelected = ( (size_t) guiSelectedSampleIndex == i );
+                std::filesystem::path samplePath {std::get<0>(sampleData[i])};
+                const char* sampleName = samplePath.filename().c_str();
+                if (ImGui::Selectable(sampleName, alreadySelected))
+                {
+                    guiSelectedSampleIndex = i;
+                }
             }
+          ImGui::EndListBox();
         }
-    ImGui::EndListBox();
+    }
 
 
-    ImGui::BeginListBox("Scale Picker");
-        int guiSelectedScaleIndex = scaleIndex;
-        for (size_t i = 0; i < scaleData.size(); i++) {
-            const bool alreadySelected = ( (size_t) guiSelectedScaleIndex == i );
-            auto scale = scaleData[i];
-            std::string name =  std::get<0>(scale);
-            if (ImGui::Selectable(name.c_str(), alreadySelected))
-            {
-                guiSelectedScaleIndex = i;
+    int guiSelectedScaleIndex = scaleIndex;
+    if(ImGui::CollapsingHeader("Scale")) {
+       if (ImGui::BeginListBox("Scale Picker") ) {
+            for (size_t i = 0; i < scaleData.size(); i++) {
+                const bool alreadySelected = ( (size_t) guiSelectedScaleIndex == i );
+                auto scale = scaleData[i];
+                std::string name =  std::get<0>(scale);
+                if (ImGui::Selectable(name.c_str(), alreadySelected))
+                {
+                    guiSelectedScaleIndex = i;
+                }
             }
+          ImGui::EndListBox();
         }
-    ImGui::EndListBox();
+    }
 
 
     float audioSlider = soloud.getGlobalVolume();
@@ -1062,6 +1074,15 @@ void processGUI() {
         }
     }
 
+    static int ballGravityScaleRadio = ballGravityScale;
+    if(ImGui::CollapsingHeader("Gravity")) {
+    ImGui::RadioButton("1/4x", &ballGravityScaleRadio, -2); ImGui::SameLine();
+    ImGui::RadioButton("1/2x", &ballGravityScaleRadio, -1); ImGui::SameLine();
+    ImGui::RadioButton("1x",   &ballGravityScaleRadio, 0); ImGui::SameLine();
+    ImGui::RadioButton("2x",   &ballGravityScaleRadio, 1); ImGui::SameLine();
+    ImGui::RadioButton("4x",   &ballGravityScaleRadio, 2); 
+    } 
+
     int newSaveSlot = selectedSaveSlot;
     bool saveClicked = false;
     bool loadClicked = false;
@@ -1082,11 +1103,9 @@ void processGUI() {
         }
     }
 
-    if(ImGui::CollapsingHeader("Debug")) {
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-        ImGui::Text("Active Voices : %u", soloud.getActiveVoiceCount());
-        ImGui::Text("Balls : %li", balls.size());
-    }
+    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+    ImGui::Text("Active Voices : %u", soloud.getActiveVoiceCount());
+    ImGui::Text("Balls : %li", balls.size());
 
     ImGui::End();
 
@@ -1147,6 +1166,13 @@ void processGUI() {
 
     if ( resetViewClicked ) {
         resetViewport();
+    }
+
+
+    if (ballGravityScaleRadio != ballGravityScale) {
+      ballGravityScale = ballGravityScaleRadio;
+      ballGravity = GRAVITY_BASE * (pow(2,ballGravityScale));
+      std::cout << " New " << ballGravity << std::endl;
     }
 
     if ( saveClicked ) {
