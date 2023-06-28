@@ -46,6 +46,7 @@ int windowHeight;
 GLFWwindow* window;
 glm::vec2 mouse; //glfw window coordinates : (0,windowWidth) x (0,windowHeight)
 const int vsync = 0;
+const int MSAA = 16;
 
 //OPENGL
 const auto frameTarget = std::chrono::milliseconds(16);// ~60 fps (application logic)
@@ -1232,6 +1233,7 @@ void init() {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_SAMPLES, MSAA);
   window = glfwCreateWindow(800, 600, "Drop Sound", NULL, NULL);
 
   if ( window == NULL ) 
@@ -1268,6 +1270,7 @@ void init() {
     exit(-2);
   }
 
+  glEnable(GL_MULTISAMPLE);//MSAA
   glViewport(0, 0, 800, 600);
   glfwGetWindowSize(window,&windowWidth,&windowHeight);
   glClearColor(clearColor.x,clearColor.y,clearColor.z,clearColor.w);
