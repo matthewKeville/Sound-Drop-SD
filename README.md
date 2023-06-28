@@ -1,6 +1,13 @@
-# sound drip
+# sound drop sd
 
 > A physics based beat synthesizer inspired by the original IOS application **Sound Drop** by **Develoe**
+
+In sound drop sd you create beats by bouncing balls on lines.
+The length of the line determines what notes are played.
+
+
+[<img src="showcase/snap1.png" width="300" />](showcase/snap1.png)
+[<img src="showcase/snap2.png" width="300" />](showcase/snap2.png)
 
 Features
 
@@ -10,6 +17,7 @@ Features
 - Save slots to experiment with new variations without losing your progress
 - An Undo/Redo stack to help dial in your sounds
 - Musical scale transpositions to change the mood
+- Color and notes mapped to the width of lines
 - Pan & zoom controls to navigate complex pieces
 - Adjustable physics parameters
 - A simple IMGUI
