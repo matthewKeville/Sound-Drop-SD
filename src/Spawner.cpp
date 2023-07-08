@@ -9,7 +9,7 @@
 Spawner::Spawner( Shader* shader,const unsigned int* spawnerVao,const unsigned int* spawnerVbo,
                   Shader* digitShader, const unsigned int* digitVao,const unsigned int* digitVbo ,const unsigned int* digitTextures,
                   Shader* ballShader, const unsigned int* ballVao,const unsigned int* ballVbo,
-                  float cx, float cy,float baseFrequency,float scale) {
+                  float cx, float cy,float baseFrequency,unsigned int scale) {
 
   this->radius = 0.02f;
   this->center = glm::vec2(cx,cy);
@@ -164,7 +164,7 @@ glm::vec2 Spawner::getPosition() {
 
 std::ostream& operator<<(std::ostream& os,Spawner& s) {
   auto pos = s.getPosition();
-  return os << "{" << pos.x << ","  << pos.y << "," << s.getScale();
+  return os << "{" << pos.x << ","  << pos.y << "," << s.getScale() << "}";
 }
 
 

@@ -40,7 +40,7 @@
   const std::string RES_PATH = "/usr/local/share/sound-drop-sd/res";
   const std::string DATA_PATH = "~/.sound-drop";
 #endif
-
+std::filesystem::path selectedLoadFile = "";
 
 const int MAX_LINES = 50;
 const int MAX_BALLS = 300; 
@@ -100,7 +100,7 @@ float* spawnerVertices;
 double DEFAULT_SPAWN_X = -0.5f;
 double DEFAULT_SPAWN_Y = 0.5f;
 float DEFAULT_BASE_SPAWN_FREQUENCY = (1.0f/3.0f);
-float DEFAULT_SPAWN_SCALE = 1.0f;
+unsigned int DEFAULT_SPAWN_SCALE = 1;
 float SPAWNER_SCALE_MAX = 8.0f;
 float SPAWNER_SCALE_MIN = 1.0f;
 std::vector<Spawner*> spawners;
@@ -175,7 +175,8 @@ void changeView(glm::vec2);
 void updateProjection(); 
 void changeProjection(float); 
 void resetViewport();
-void saveToFile(std::vector<Line*> lines, std::vector<Spawner*>,std::string);
+void saveToFile(std::vector<Line*>& lines, std::vector<Spawner*>&,std::string);
+void loadFromFile(std::vector<Line*>& lines, std::vector<Spawner*>&,std::filesystem::path);
 
 void init();
 void generateSampleData();
@@ -1041,11 +1042,27 @@ void processConfigGui(ImGuiIO& io) {
     if(ImGui::CollapsingHeader("Files")) {
       static char saveFilePathString[64];
       ImGui::InputText("File",saveFilePathString,64);
+      ImGui::SameLine();
       if(ImGui::Button("Save")) {
         std::cout << " save clicked for path :" << saveFilePathString << std::endl;
         saveToFile(lines,spawners,std::string{saveFilePathString});
       }
+
+
+      if(ImGui::Button("load")) {
+        std::cout << " load clicked for path :" <<selectedLoadFile.string() << std::endl; 
+        loadFromFile(lines,spawners,selectedLoadFile);
+      }
       ImGui::SameLine();
+      if (ImGui::BeginListBox("load file picker")) {
+        for ( const std::filesystem::path& p : std::filesystem::directory_iterator(DATA_PATH) ) {
+          bool selected = selectedLoadFile.string() == p.string();
+          if (ImGui::Selectable(p.filename().string().c_str(),selected)) {
+            selectedLoadFile = p;
+          }
+        }
+        ImGui::EndListBox();
+      }
     }
 
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
@@ -1664,8 +1681,7 @@ void shutdown() {
   soloud.deinit();
 }
 
-void saveToFile(std::vector<Line*> lines, std::vector<Spawner*> spawners,std::string fileName) {
-  //Does DATA_PATH exist?
+void saveToFile(std::vector<Line*>& lines, std::vector<Spawner*>& spawners,std::string fileName) {
   std::filesystem::path path {DATA_PATH};
   if (!std::filesystem::exists(DATA_PATH)) {
     std::cout << " DATA_PATH : " << DATA_PATH << " does not exist , creating ... " << std::endl;
@@ -1687,10 +1703,9 @@ void saveToFile(std::vector<Line*> lines, std::vector<Spawner*> spawners,std::st
   std::ofstream ofs {path};
   if (!ofs) {
     std::cerr << " error saving state to file path :" << path << std::endl;
+    return;
   }
-
   std::cout << " saving to file " << path << std::endl;
-
   ofs << "lines" << std::endl;
   for ( auto lp : lines ) {
     ofs << *lp << std::endl;
@@ -1701,9 +1716,80 @@ void saveToFile(std::vector<Line*> lines, std::vector<Spawner*> spawners,std::st
   }
 }
 
+/* load lines and balls data from a file, obliterate the current lines & balls */
+void loadFromFile(std::vector<Line*>& lines, std::vector<Spawner*>& spawners,std::filesystem::path path) {
 
+  if (!std::filesystem::exists(path)) {
+    std::cerr << " No such file " << path << std::endl;
+    return;
+  }
+  std::ifstream ifs {path};
+  if (!ifs) {
+    std::cerr << " error loading state from file :" << path << std::endl;
+    return;
+  }
 
+  //clear extant data
+  for ( auto lp : lines ) { 
+    delete lp;
+  }
+  for ( auto sp : spawners ) { 
+    delete sp;
+  }
+  lines.clear();
+  spawners.clear();
 
+  //parse & generate lines 
+
+  std::string istring;
+  if (!getline(ifs,istring) || istring != "lines" ) {
+    std::cerr << " bad file format " <<std::endl;
+    return;
+  }
+  while(getline(ifs,istring) && istring != "spawners" ) {
+    char junk;
+    float ax, ay, bx, by;
+    std::stringstream lineData(istring);
+    lineData >> junk;
+    lineData >> ax;
+    lineData >> junk;
+    lineData >> ay;
+    lineData >> junk;
+    lineData >> bx;
+    lineData >> junk;
+    lineData >> by;
+    //std::cout << " ax : " << ax << " ay : " << ay << "bx : " << bx << "by : " << by << std::endl;
+    auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
+    lines.push_back(new Line(lineShader,&lineVao,&lineVbo,ax,ay,bx,by,semitoneMapper,colorMapper));
+  }
+
+  //parse & generate spawners
+
+  if ( istring != "spawners" ) {
+    std::cerr << " bad file format " <<std::endl;
+    return;
+  }
+  
+  while(getline(ifs,istring)) {
+    std::stringstream lineData(istring);
+    char junk;
+    float ax;
+    float ay;
+    unsigned int scale;
+    lineData >> junk;
+    lineData >> ax;
+    lineData >> junk;
+    lineData >> ay;
+    lineData >> junk;
+    lineData >> scale;
+    //std::cout << " ax : " << ax << " ay : " << ay << " scale " << scale << std::endl;
+    spawners.push_back(new Spawner( ballShader, &spawnerVao, &spawnerVbo,
+                                    digitShader, &digitVao, &digitVbo, digitTextures,
+                                    ballShader, &ballVao,&ballVbo,
+                                    ax,ay,
+                                    DEFAULT_BASE_SPAWN_FREQUENCY,scale));
+  }
+}
 
 
 

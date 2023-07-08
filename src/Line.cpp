@@ -160,5 +160,15 @@ std::ostream& operator<<(std::ostream& os,Line& l) {
   return os << "{" << a.x << ","  << a.y << "," << b.x << "," << b.y << "}";
 }
 
+std::ostream& operator<<(std::istream& is,Line& l) {
+  auto [a,b] = l.getPoints();
+  char bracket, comma;
+  float ax,ay,bx,by;
+  if ( is>>bracket && bracket=='{' ) {
+
+  }
+  //return is << "{" << a.x << ","  << a.y << "," << b.x << "," << b.y << "}";
+}
+
 
 

@@ -11,7 +11,7 @@ class Spawner : public Interactable {
   public:
     void draw();
     //spawner digit ball
-    Spawner(Shader*,const unsigned int*,const unsigned int*,Shader*,const unsigned int*,const unsigned int*,const unsigned int*,Shader*,const unsigned int*,const unsigned int*,float,float,float,float);
+    Spawner(Shader*,const unsigned int*,const unsigned int*,Shader*,const unsigned int*,const unsigned int*,const unsigned int*,Shader*,const unsigned int*,const unsigned int*,float,float,float,unsigned int);
     Ball* spawn(float currentTime/*in s from app start */);
     void setScale(unsigned int);
     unsigned int getScale();
