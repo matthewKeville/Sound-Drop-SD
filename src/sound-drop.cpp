@@ -46,17 +46,16 @@ int windowHeight;
 GLFWwindow* window;
 glm::vec2 mouse; //glfw window coordinates : (0,windowWidth) x (0,windowHeight)
 const int vsync = 0;
-const int MSAA = 16;
+const int MSAA = 16; //should this be lifted to a user setting?
 
 //OPENGL
 const auto frameTarget = std::chrono::milliseconds(16);// ~60 fps (application logic)
-//const auto frameTarget = std::chrono::milliseconds(32);// ~30 fps (application logic)
 const float MAX_VIEWPORT_SCALE = 3.0f;
 const float MIN_VIEWPORT_SCALE = 1.0f;
 float viewportScale = MIN_VIEWPORT_SCALE;
 glm::vec2 viewportCenter = glm::vec2(0,0);
 glm::vec4 clearColor{0.0f,0.0f,0.0f,0.0f};
-glm::mat4 projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
+glm::mat4 projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //l,r,b,t,n,f
 glm::mat4 view = glm::mat4(1); 
 
 //shaders
@@ -142,28 +141,18 @@ StateStack stateStack;
 bool lineDrawing = false;
 bool selected = false;
 bool pausePhysics = false;
+bool showHelp = true;
+bool showConfig = true;
 bool muteAudio = false;
                                                               
-//key states
-bool S_PRESSED = false;
-bool P_PRESSED = false;
-bool M_PRESSED = false;
-bool R_PRESSED = false;
-bool U_PRESSED = false;
-bool UP_PRESSED = false;
-bool DOWN_PRESSED = false;
-bool LEFT_PRESSED = false;
-bool RIGHT_PRESSED = false;
-// modifier key
+//key states (for combo clicks like zoom in/out)
 bool ALT_PRESSED = false;
 bool L_CONTROL_PRESSED = false;
 
-
-//glfw key polling
-void processInput(GLFWwindow* window);
 //glfw callbacks
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
 //application routines
@@ -176,10 +165,10 @@ void play_bounce_audio(Line* lp);
 Interactable* detect_hover();
 void update_interactable();
 void update_balls();
-void updateView(); //update shader programs
-void changeView(glm::vec2); //update internal view representation ( and confine to predefined constraints )
-void updateProjection(); //update shader programs
-void changeProjection(float); //update internal view representation
+void updateView(); 
+void changeView(glm::vec2); 
+void updateProjection(); 
+void changeProjection(float); 
 void resetViewport();                             
 
 void init();
@@ -192,6 +181,8 @@ void shutdown();
 void update();
 void processIO();
 void processGUI();
+void processConfigGui(ImGuiIO& io);
+void processHelpGui(ImGuiIO& io);
 void draw();
 
 //state stack manipulation
@@ -209,7 +200,6 @@ int main() {
 
   init();
   record();
-
 
   while(!glfwWindowShouldClose(window))
   {
@@ -256,52 +246,147 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
   glfwGetWindowSize(window,&windowWidth,&windowHeight);
 }
 
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) 
+{
 
-void processInput(GLFWwindow* window) {
+  //////////////////
+  // mod keys
+  //////////////////
 
-  // The order of key processing matters, that is these modifier keys
-  // need to be set to trigger key states below in this function
-
-  if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS) {
-    if (!ALT_PRESSED) {  // Toggle Play/Pause
-      ALT_PRESSED = true;
+  if (key == GLFW_KEY_LEFT_ALT ) {
+    if (action == GLFW_PRESS ) {
       std::cout << " mod key alt enabled " << std::endl;
+      ALT_PRESSED = true;
+    } else if (action == GLFW_RELEASE) {
+      std::cout << " mod key alt disabled " << std::endl;
+      ALT_PRESSED = false;
     }
   }
-  if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_RELEASE && ALT_PRESSED) {
-    std::cout << " mod key alt disabled " << std::endl;
-    ALT_PRESSED = false;
-  }
 
-  if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
-    if (!L_CONTROL_PRESSED) {  // Toggle Play/Pause
-      L_CONTROL_PRESSED = true;
+  if (key == GLFW_KEY_LEFT_CONTROL ) {
+    if (action == GLFW_PRESS ) {
       std::cout << " mod key control enabled " << std::endl;
+      L_CONTROL_PRESSED = true;
+    } else if (action == GLFW_RELEASE) {
+      std::cout << " mod key control disabled " << std::endl;
+      L_CONTROL_PRESSED = false;
     }
   }
-  if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_RELEASE && L_CONTROL_PRESSED) {
-    std::cout << " mod key control disabled " << std::endl;
-    L_CONTROL_PRESSED = false;
-  }
 
-  //////////////////////////////////////////////////
+  //////////////////
+  // normal mode
+  //////////////////
 
-  if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
-    if (!P_PRESSED) {  // Toggle Play/Pause
-      pausePhysics = !pausePhysics;
-      P_PRESSED = true;
-      std::cout << "Simulation " << (pausePhysics ? " Paused " : " Resume ")  << std::endl;
+  if (!selected) {
+
+    //show/hide help
+    if (key == GLFW_KEY_H && action == GLFW_RELEASE) {
+        showHelp = !showHelp;
+        std::cout << "Help " << (showHelp ? " show " : " hide ")  << std::endl;
     }
-  }
-  if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) {
-    P_PRESSED = false;
-  }
+
+    //show/hide config menu
+    if (key == GLFW_KEY_C && action == GLFW_RELEASE) {
+        showConfig = !showConfig;
+        std::cout << "Config " << (showConfig ? " show " : " hide ")  << std::endl;
+    }
+
+    //pause
+    if (key == GLFW_KEY_P && action == GLFW_RELEASE) {
+        pausePhysics = !pausePhysics;
+        std::cout << "Simulation " << (pausePhysics ? " Paused " : " Resume ")  << std::endl;
+    }
+
+    //Pan Left
+    if (key == GLFW_KEY_LEFT && action == GLFW_RELEASE) {
+        std::cout << "panning left" << std::endl;
+        changeView(viewportCenter + glm::vec2(0.1f,0.0f));
+        updateView();
+    } 
+
+    //Pan Right
+    if (key == GLFW_KEY_RIGHT  && action == GLFW_RELEASE) {
+        std::cout << "panning right" << std::endl;
+        changeView(viewportCenter + glm::vec2(-0.1f,0.0f));
+        updateView();
+    } 
+
+    //Zoom out / Pan up
+    if (key == GLFW_KEY_UP  && action == GLFW_RELEASE) {
+      if (ALT_PRESSED) {
+        std::cout << "zooming out" << std::endl;
+        changeProjection(viewportScale*(1.1f));
+        updateProjection();
+      } else {
+        std::cout << "panning up" << std::endl;
+        changeView(viewportCenter + glm::vec2(0,-0.1f));
+        updateView();
+      }
+    }
+
+    //Zoom in / Pan Down
+    if (key == GLFW_KEY_DOWN  && action == GLFW_RELEASE) {
+      if (ALT_PRESSED) {
+        std::cout << "zooming in" << std::endl;
+        changeProjection(viewportScale*(0.9f));
+        updateProjection();
+      } else {
+        std::cout << "panning down" << std::endl;
+        changeView(viewportCenter + glm::vec2(0,0.1f));
+        updateView();
+      }
+    }
 
 
-  if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-    if (!UP_PRESSED) {
-      UP_PRESSED = true;
-      if (selected) { // INCREASE SPAWNER SCALE
+
+    //redo
+    if (key == GLFW_KEY_U && action == GLFW_RELEASE) {
+        undo();
+    } 
+
+    //undo
+    if (key == GLFW_KEY_R && action == GLFW_RELEASE) {
+        if ( L_CONTROL_PRESSED ) { 
+          redo();
+        } else {
+          resetViewport();
+        }
+    } 
+
+    //new spawner
+    if (key == GLFW_KEY_S && action == GLFW_RELEASE) {
+        if (!selected && hovered == nullptr) {  // Spawn
+          auto wscp = ndcToWorldCoordinates(mouseToNDC(mouse));
+          spawners.push_back(new Spawner( /*spawner shader is ball shader*/ballShader, &spawnerVao, &spawnerVbo,
+                                          digitShader, &digitVao, &digitVbo, digitTextures,
+                                          ballShader, &ballVao,&ballVbo,
+                                          wscp.x,wscp.y,
+                                          DEFAULT_BASE_SPAWN_FREQUENCY,DEFAULT_SPAWN_SCALE));
+          record();
+        }
+        std::cout << "spawning spawner" << std::endl;
+    }
+
+    //mute
+    if (key == GLFW_KEY_M && action == GLFW_RELEASE) {
+        muteAudio = !muteAudio;
+        soloud.stopAll();
+        std::cout << (muteAudio ? " Muting " : " UnMuting ")  << std::endl;
+    }
+
+    //exit
+    if (key == GLFW_KEY_Q && action == GLFW_RELEASE) {
+      glfwSetWindowShouldClose(window,true);
+    } 
+
+  ///////////////////////////
+  // interaction mode
+  ///////////////////////////
+
+  } else if (selected) {
+
+    //increase spawn rate
+    if (key == GLFW_KEY_UP && action == GLFW_RELEASE) {
         Spawner* sp = dynamic_cast<Spawner*>(interactable);
         if ( sp != nullptr ) {
           unsigned int current = sp->getScale();
@@ -310,26 +395,10 @@ void processInput(GLFWwindow* window) {
           }     
           std::cout << "increasing spawner" << std::endl;
         }
-      } else if (ALT_PRESSED) { // ZOOM IN
-          std::cout << "zooming in" << std::endl;
-          changeProjection(viewportScale*(0.9f));
-          updateProjection();
-      } else { // PAN UP
-          std::cout << "panning up" << std::endl;
-          changeView(viewportCenter + glm::vec2(0,-0.1f));
-          updateView();
-        }
     }
-  } 
-  if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_RELEASE) {
-    UP_PRESSED = false;
-  }
 
-
-  if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-    if (!DOWN_PRESSED) {
-      DOWN_PRESSED = true;
-      if (selected) { // DECREASE SPAWNER SCALE
+    //decrease spawn rate
+    if (key == GLFW_KEY_DOWN && action == GLFW_RELEASE) {
         Spawner* sp = dynamic_cast<Spawner*>(interactable);
         if ( sp != nullptr ) {
           unsigned int current = sp->getScale();
@@ -338,201 +407,49 @@ void processInput(GLFWwindow* window) {
           }     
           std::cout << "decreasing spawner" << std::endl;
         }
-      } else if (ALT_PRESSED) { // ZOOM OUT
-          std::cout << "zooming out" << std::endl;
-          changeProjection(viewportScale*(1.1f));
-          updateProjection();
-      } else { // PAN DOWN
-          std::cout << "panning down" << std::endl;
-          changeView(viewportCenter + glm::vec2(0,0.1f));
-          updateView();
+    }
+
+    //delete
+    if (key == GLFW_KEY_D && action == GLFW_RELEASE) {
+      std::cout << "Deleting Interactable" << std::endl;
+      if ( dynamic_cast<Line*>(interactable) != nullptr ) {
+        interactable->markDeleted();
       }
-    }
-  }
-  if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_RELEASE) {
-    DOWN_PRESSED = false;
-  }
-
-
-  if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
-    if (!LEFT_PRESSED) { // PAN LEFT
-      LEFT_PRESSED = true;
-      std::cout << "panning left" << std::endl;
-      changeView(viewportCenter + glm::vec2(0.1f,0.0f));
-      updateView();
-    }
-  } 
-  if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_RELEASE) {
-    LEFT_PRESSED = false;
-  }
-
-
-  if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-    if (!RIGHT_PRESSED) { // PAN RIGHT
-      RIGHT_PRESSED = true;
-      std::cout << "panning right" << std::endl;
-      changeView(viewportCenter + glm::vec2(-0.1f,0.0f));
-      updateView();
-    }
-  } 
-  if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_RELEASE) {
-    RIGHT_PRESSED = false;
-  }
-
-  if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS) {
-    if (!U_PRESSED) { // undo 
-      U_PRESSED = true;
-      undo();
-    }
-  } 
-  if (glfwGetKey(window, GLFW_KEY_U) == GLFW_RELEASE) {
-    U_PRESSED = false;
-  }
-
-
-  if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
-    if (!R_PRESSED) { // redo 
-      R_PRESSED = true;
-      if ( L_CONTROL_PRESSED ) { // undo
-        redo();
-      } else {
-        resetViewport();
-      }
-    }
-  } 
-  if (glfwGetKey(window, GLFW_KEY_R) == GLFW_RELEASE) {
-    R_PRESSED = false;
-  }
-
-  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-    if (!S_PRESSED) {
-      S_PRESSED = true;
-      if (!selected && hovered == nullptr) {  // Spawn
-        auto wscp = ndcToWorldCoordinates(mouseToNDC(mouse));
-        spawners.push_back(new Spawner( /*spawner shader is ball shader*/ballShader, &spawnerVao, &spawnerVbo,
-                                        digitShader, &digitVao, &digitVbo, digitTextures,
-                                        ballShader, &ballVao,&ballVbo,
-                                        wscp.x,wscp.y,
-                                        DEFAULT_BASE_SPAWN_FREQUENCY,DEFAULT_SPAWN_SCALE));
-        record();
-      }
-      std::cout << "spawning spawner" << std::endl;
-    }
-  }
-  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_RELEASE) {
-    S_PRESSED = false;
-  }
-
-
-  ///////////////////////////////
-  //MUTE (M)
-  ///////////////////////////////
-  if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS) {
-    if (!M_PRESSED) {
-      M_PRESSED = true;
-      muteAudio = !muteAudio;
-      soloud.stopAll();
-      std::cout << (muteAudio ? " Muting " : " UnMuting ")  << std::endl;
-    }
-  }
-  if (glfwGetKey(window, GLFW_KEY_M) == GLFW_RELEASE) {
-    M_PRESSED = false;
-  }
-
-
-  ///////////////////////////////
-  //Delete (d)
-  ///////////////////////////////
-  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-      if (selected) {  // Delete an Interactable
-          std::cout << "Deleting Interactable" << std::endl;
-          //what kind of interactable is it (where is it stored)
-          //this is bad and needs to be refactored
-          if ( dynamic_cast<Line*>(interactable) != nullptr ) {
-              interactable->markDeleted();
-          }
-          if ( dynamic_cast<Spawner*>(interactable) != nullptr ) {
-              interactable->markDeleted();
-          }
+      if ( dynamic_cast<Spawner*>(interactable) != nullptr ) {
+        interactable->markDeleted();
       }
       selected = false;
       interactable = nullptr;
+    }
+
   }
-
-  //////////////////////////////
-  //Clear (C)
-  //////////////////////////////
-  if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
-    auto sitty = spawners.begin();
-    while (sitty != spawners.end()) {
-      Spawner* sp = *sitty;
-      sitty = spawners.erase(sitty);
-      delete sp;
-    }
-
-    auto bitty = balls.begin();
-    while (bitty != balls.end()) {
-      Ball* bp = *bitty;
-      bitty = balls.erase(bitty);
-      delete bp;
-    }
-
-    auto litty = lines.begin();
-    while (litty != lines.end()) {
-      Line* lp = *litty;
-      litty = lines.erase(litty);
-      delete lp;
-    }
-
-    std::cout << "Clearing Entities" << std::endl;
-    std::cout << "Resetting State Stack" << std::endl;
-    stateStack.Reset();
-  } 
-
-  ///////////////////////////////
-  //QUIT (q)
-  ///////////////////////////////
-  if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-    glfwSetWindowShouldClose(window,true);
-  } 
-
-
-
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
+    (void) window;//suppress -Wunused-paramter
+    (void) mods;//suppress -Wunused-paramter
     //if ImGui window "Wants" the mouse, we do not process below
     ImGuiIO& io = ImGui::GetIO();
     if (io.WantCaptureMouse) {
       return;
     }
-
-    (void) window;//suppress -Wunused-paramter
-    (void) mods;//suppress -Wunused-paramter
-    
+  
+    //draw lines / pick selection
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
 
-      ////////////////////////////////
-      //Line Drawing Logic
-      ////////////////////////////////
+      //draw lines
       if ( !selected && hovered==nullptr ) {
-        
         if (lines.size() == MAX_LINES) {
           return;
         }
-
         if ( !lineDrawing ) {
-
           //map mouse coordinates to view plane
           previewBasePoint = ndcToWorldCoordinates(mouseToNDC(mouse));
-
           lineDrawing = true;
         } else { 
-
           float xPos; float yPos;
           constrainedPreviewLineTerminal(xPos,yPos);
-          
           //create a Line instance of this line
           auto [name , semitoneMapper, colorMapper ] = scaleData[scaleIndex];
           lines.push_back(new Line(lineShader,&lineVao,&lineVbo,previewBasePoint.x,previewBasePoint.y,xPos,yPos,semitoneMapper,colorMapper));
@@ -540,30 +457,26 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
           lineDrawing = false;
         }
 
-      ////////////////////////////////
-      //interactable selection 
-      ////////////////////////////////
+      //select interactable (set interaction mode)
       } else if ( !selected && hovered!=nullptr ) {
-
         selected = true;
         interactable = hovered;
         interactableCenterDisplacement = ndcToWorldCoordinates(mouseToNDC(mouse)) - interactable->getPosition();
-
+      //I don't remember why we need this...
       } else if ( selected ) {
-
         selected = false;
         interactable = nullptr;
       }
     }
 
-    ///////////
-    //undo redo
-    ///////////
-    
+    /* It feels kinda confusing the way undo redo is doubled mapped over 2 function callbacks */
+
+    //undo 
     if (button == GLFW_MOUSE_BUTTON_4 && action == GLFW_PRESS) {
       undo();
     }
 
+    //redo
     if (button == GLFW_MOUSE_BUTTON_5 && action == GLFW_PRESS) {
       redo();
     }
@@ -594,11 +507,7 @@ void drawLinePreview(){
 void constrainedPreviewLineTerminal(float& xPos,float& yPos) {
 
   auto wscp = ndcToWorldCoordinates(mouseToNDC(mouse));
-
-  //constrain the line between our bounds
-  
   auto vec = wscp - previewBasePoint;
-
   float norm = sqrt(glm::dot(vec,vec));
   glm::vec2 Pos = previewBasePoint;
 
@@ -988,38 +897,55 @@ void redo() {
 };
 
 void processIO() {
-
-    hovered = detect_hover();
     ImGuiIO& io = ImGui::GetIO();
     if (!io.WantCaptureMouse) {
-      processInput(window);
+      //do non IMGUI io
     }
+    hovered = detect_hover();
     bool interactingBeforeInputs = (interactable != nullptr);  /* for tracking interaction end */
     glfwPollEvents();
     if ( interactable == nullptr && interactingBeforeInputs ) {
       record(); 
     }
     update_interactable();
-
 }
 
 
 void processGUI() {
 
-    //start the dear ImGUI frame
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
+  ImGui_ImplOpenGL3_NewFrame();
+  ImGui_ImplGlfw_NewFrame();
+  ImGuiIO& io = ImGui::GetIO(); (void)io;
+  ImGui::NewFrame();
 
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+  if (showConfig) {
+    processConfigGui(io);
+  }
+  if (showHelp) {
+    processHelpGui(io);
+  }
 
-    const float imguiWindowWidth = 200.0f;
-    const float imguiWindowHeight = 800.0f;
-    ImGui::SetNextWindowPos(ImVec2(windowWidth-imguiWindowWidth,0),ImGuiCond_FirstUseEver); //Enum FirstUseEver allows us to move this window (otherwise it's locked)
-    ImGui::SetNextWindowSize(ImVec2(imguiWindowWidth,imguiWindowHeight),ImGuiCond_FirstUseEver); //likewise, we can resize with the enum 
-    //ImGui::Begin("Options");                         
-    ImGui::Begin("Options",nullptr,ImGuiWindowFlags_AlwaysAutoResize);                         
+  ImGui::Render();
+  ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
+}
+
+void processConfigGui(ImGuiIO& io) {
+
+    /* 
+     * this section has alot of doubled variables to enforce variable restrictions
+     * I imagine I don't need this duplication of variables & and can constrain directly with
+     * ImGUI but this was written when I knew less about it 
+     */
+
+    //ImVec2 window_size = ImGui::GetWindowSize();
+    //ImVec2 window_pos = ImGui::GetWindowPos();
+
+    ImGuiWindowFlags main_window_flags =  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse/*do i want this?*/ | ImGuiWindowFlags_AlwaysAutoResize;
+    ImGui::SetNextWindowSize({400,600});
+    ImGui::SetNextWindowPos(ImVec2(windowWidth-400-10/*windowWidth-400*//*should be window width - size of this - 10*/,50),ImGuiCond_FirstUseEver/*so we move the window*/); 
+    ImGui::SetNextWindowBgAlpha(0.35f);
+    ImGui::Begin("Options",nullptr,main_window_flags);                         
 
     int guiSelectedSampleIndex = sampleIndex;
     if(ImGui::CollapsingHeader("Sample")) {
@@ -1038,7 +964,6 @@ void processGUI() {
         }
     }
 
-
     int guiSelectedScaleIndex = scaleIndex;
     if(ImGui::CollapsingHeader("Scale")) {
        if (ImGui::BeginListBox("Scale Picker") ) {
@@ -1054,7 +979,6 @@ void processGUI() {
           ImGui::EndListBox();
         }
     }
-
 
     float audioSlider = soloud.getGlobalVolume();
     if(ImGui::CollapsingHeader("Volume")) {
@@ -1110,16 +1034,8 @@ void processGUI() {
 
     ImGui::End();
 
-    ////////////////////
-    //Render ImGUI
-    ////////////////////
 
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    ////////////////////
-    //Process ImGui state
-    ////////////////////
+    //Process State
 
     //If ImGui ListBox and ComboBox sets a negative index, we have a invalid index...
     if ( guiSelectedSampleIndex >= 0 && (unsigned int) guiSelectedSampleIndex != sampleIndex) {
@@ -1189,6 +1105,178 @@ void processGUI() {
         stateStack.Reset();
     }
 
+    //ImGui::Render();
+    //ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+}
+
+void processHelpGui(ImGuiIO& io) {
+
+  ImVec2 window_size = ImGui::GetWindowSize();
+  ImVec2 window_pos = ImGui::GetWindowPos();
+  ImGuiWindowFlags window_flags =  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
+
+  ImGui::SetNextWindowSize({230,600});
+  ImGui::SetNextWindowPos(ImVec2(10,50),ImGuiCond_FirstUseEver/*so we move the window*/); 
+  ImGui::SetNextWindowBgAlpha(0.35f);
+
+  ImGui::Begin("test overlay", nullptr, window_flags);
+
+  //future me would prefer all these keystrokes map to an event structure
+  //an that structure takes a key an optionally a meta key ex. Alt
+  //then when setting up the keystroke callback we functionally evaluate this
+  //variable keymapping, similary we can iterate over it here, instead of 2 explicit lists
+
+  ImGui::SeparatorText("View");
+  ImGui::BeginTable("View",2);
+
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("Pan Left");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'Left\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("Pan Right");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'Right\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("Pan Up");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'Up\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("Pan Down"); 
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'Down\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("Zoom out"); 
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'Alt\' \'Up\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("Zoom in"); 
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'Alt\' \'Down\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("Reset view"); 
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'r\'");
+
+  ImGui::EndTable();
+
+  ImGui::SeparatorText("Normal Mode");
+  ImGui::BeginTable("Normal Mode",2);
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("Show/Hide Config");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'c\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("Show/Hide Help");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'h\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("Select");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'Mouse1\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("Start/End draw");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'Mouse1\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("Pause");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'p\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("Mute");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'m\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("redo");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'L_CONTROL\' \'r\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("redo");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'Mouse4\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("undo");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'u\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("undo");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'Mouse5\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("new spawner");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'s\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("quit");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'q\'");
+
+  ImGui::EndTable();
+
+
+  ImGui::SeparatorText("Interaction Mode");
+  ImGui::BeginTable("Interaction Mode",2);
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("increase spawner rate");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'Up\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("decrease spawner rate");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'Down\'");
+
+  ImGui::TableNextRow();
+  ImGui::TableSetColumnIndex(0);
+  ImGui::Text("delete");
+  ImGui::TableSetColumnIndex(1);
+  ImGui::Text("\'d\'");
+
+  ImGui::EndTable();
+  ImGui::End();
+
 }
 
 void draw() {
@@ -1246,7 +1334,10 @@ void init() {
 
   //we must register these before ImGui init
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+
   glfwSetMouseButtonCallback(window, mouse_button_callback);
+  glfwSetKeyCallback(window, key_callback);
+
   glfwSetCursorPosCallback(window, mouse_callback);
 
   if (vsync) {
@@ -1258,6 +1349,7 @@ void init() {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO(); (void)io;
+  io.IniFilename = nullptr; //prevent imgui from generating a config file
   ImGui_ImplGlfw_InitForOpenGL(window, true);                 // configure backends
   ImGui_ImplOpenGL3_Init(glsl_version);
   ImGui::StyleColorsDark();
