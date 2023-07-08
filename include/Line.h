@@ -6,6 +6,7 @@
 #include <tuple>
 #include <functional>
 #include <glm/glm.hpp>
+#include <ostream>
 
 class Line : public Interactable {
   public:
@@ -31,5 +32,7 @@ class Line : public Interactable {
     glm::vec2 pointB;
     void updateModelMatrix();
 };
+
+std::ostream& operator<<(std::ostream&,Line&);
 
 #endif

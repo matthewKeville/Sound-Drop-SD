@@ -7,6 +7,8 @@
 #include <algorithm> //std::copy
 #include <chrono>    //sleep thread
 #include <filesystem>
+#include <fstream>
+#include <regex>
 //Third Party
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -33,9 +35,12 @@
 
 #if defined DEV_BUILD
   const std::string RES_PATH = "./res";
+  const std::string DATA_PATH = "./.sound-drop";
 #else
   const std::string RES_PATH = "/usr/local/share/sound-drop-sd/res";
+  const std::string DATA_PATH = "~/.sound-drop";
 #endif
+
 
 const int MAX_LINES = 50;
 const int MAX_BALLS = 300; 
@@ -169,7 +174,8 @@ void updateView();
 void changeView(glm::vec2); 
 void updateProjection(); 
 void changeProjection(float); 
-void resetViewport();                             
+void resetViewport();
+void saveToFile(std::vector<Line*> lines, std::vector<Spawner*>,std::string);
 
 void init();
 void generateSampleData();
@@ -248,6 +254,10 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) 
 {
+  ImGuiIO& io = ImGui::GetIO();
+  if (io.WantCaptureKeyboard) {
+    return;
+  }
 
   //////////////////
   // mod keys
@@ -1028,6 +1038,16 @@ void processConfigGui(ImGuiIO& io) {
         }
     }
 
+    if(ImGui::CollapsingHeader("Files")) {
+      static char saveFilePathString[64];
+      ImGui::InputText("File",saveFilePathString,64);
+      if(ImGui::Button("Save")) {
+        std::cout << " save clicked for path :" << saveFilePathString << std::endl;
+        saveToFile(lines,spawners,std::string{saveFilePathString});
+      }
+      ImGui::SameLine();
+    }
+
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
     ImGui::Text("Active Voices : %u", soloud.getActiveVoiceCount());
     ImGui::Text("Balls : %li", balls.size());
@@ -1104,9 +1124,6 @@ void processConfigGui(ImGuiIO& io) {
         saveSlots[selectedSaveSlot].load(lines,spawners);
         stateStack.Reset();
     }
-
-    //ImGui::Render();
-    //ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 }
 
@@ -1646,3 +1663,74 @@ void shutdown() {
   glfwTerminate();
   soloud.deinit();
 }
+
+void saveToFile(std::vector<Line*> lines, std::vector<Spawner*> spawners,std::string fileName) {
+  //Does DATA_PATH exist?
+  std::filesystem::path path {DATA_PATH};
+  if (!std::filesystem::exists(DATA_PATH)) {
+    std::cout << " DATA_PATH : " << DATA_PATH << " does not exist , creating ... " << std::endl;
+    std::filesystem::create_directory(DATA_PATH); 
+  }
+
+  //Is file name safe (no escaping this directory)
+  std::regex anyParentLinux {R"(.*\.\.\/.*)"};   //any occurence of ../
+  std::regex anyParentWindows {R"(.*\.\.\/.*)"}; //any occurence of ..\
+
+  if (std::regex_match(fileName, anyParentLinux) || std::regex_match(fileName,anyParentWindows)) {
+    std::cout << " illegal file name " << std::endl;
+    std::cout << " aborting save" << std::endl;
+    return;
+  }
+
+  path/=fileName;
+
+  std::ofstream ofs {path};
+  if (!ofs) {
+    std::cerr << " error saving state to file path :" << path << std::endl;
+  }
+
+  std::cout << " saving to file " << path << std::endl;
+
+  ofs << "lines" << std::endl;
+  for ( auto lp : lines ) {
+    ofs << *lp << std::endl;
+  }
+  ofs << "spawners" << std::endl;
+  for ( auto sp : spawners ) {
+    ofs << *sp << std::endl;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

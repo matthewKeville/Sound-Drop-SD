@@ -5,8 +5,7 @@
 #include "Ball.h"
 #include "Interactable.h"
 #include <glm/glm.hpp>
-
-#include <glm/glm.hpp>
+#include <ostream>
 
 class Spawner : public Interactable {
   public:
@@ -49,5 +48,7 @@ class Spawner : public Interactable {
     void updateModelMatrix();
 
 };
+
+std::ostream& operator<<(std::ostream& os,Spawner& l);
 
 #endif

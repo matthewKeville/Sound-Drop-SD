@@ -143,7 +143,6 @@ void Line::updateModelMatrix() {
   this->model = glm::translate(this->model,glm::vec3(pointA.x,pointA.y,0));   //translate into place
   this->model = glm::rotate(this->model, theta, glm::vec3(0,0,1)); //we rotate by the angle of the diff vector
   this->model = glm::scale(this->model,glm::vec3(magnitude,1,1));
-  //this->model = glm::scale(this->model,magnitude * glm::vec3(1));
 }
 
 void Line::calculateToneAndColor(
@@ -155,5 +154,11 @@ void Line::calculateToneAndColor(
   this->color = semitoneColorMap(semitone);
 
 }
+
+std::ostream& operator<<(std::ostream& os,Line& l) {
+  auto [a,b] = l.getPoints();
+  return os << "{" << a.x << ","  << a.y << "," << b.x << "," << b.y << "}";
+}
+
 
 

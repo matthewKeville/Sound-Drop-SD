@@ -162,5 +162,9 @@ glm::vec2 Spawner::getPosition() {
 }
 
 
+std::ostream& operator<<(std::ostream& os,Spawner& s) {
+  auto pos = s.getPosition();
+  return os << "{" << pos.x << ","  << pos.y << "," << s.getScale();
+}
 
 
