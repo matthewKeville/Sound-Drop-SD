@@ -48,6 +48,7 @@ const int MAX_BALLS = 300;
 //GLFW
 int windowWidth;                
 int windowHeight;
+float windowAspect = 1.0;
 GLFWwindow* window;
 glm::vec2 mouse; //glfw window coordinates : (0,windowWidth) x (0,windowHeight)
 const int vsync = 0;
@@ -60,7 +61,8 @@ const float MIN_VIEWPORT_SCALE = 1.0f;
 float viewportScale = MIN_VIEWPORT_SCALE;
 glm::vec2 viewportCenter = glm::vec2(0,0);
 glm::vec4 clearColor{0.0f,0.0f,0.0f,0.0f};
-glm::mat4 projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //l,r,b,t,n,f
+glm::mat4 projection;
+//glm::mat4 projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //l,r,b,t,n,f
 glm::mat4 view = glm::mat4(1); 
 
 //shaders
@@ -250,7 +252,12 @@ int main() {
 //we want to resize the viewport to scale with the glfw window
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
   glViewport(0,0, width, height);
+  std::cout << " width " << width << " height " << height << std::endl;
+  std::cout << " widthWidth " << windowWidth << " windowheight " << windowHeight << std::endl;
   glfwGetWindowSize(window,&windowWidth,&windowHeight);
+  windowAspect = (float ) windowWidth/ (float) windowHeight;
+  changeProjection(viewportScale);
+  updateProjection();
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) 
@@ -796,7 +803,9 @@ void update_balls() {
 //what world space coordinate does this map to?
 glm::vec2 ndcToWorldCoordinates(glm::vec2 ndc) {
   //undo ortho proj (scaling)
-  glm::vec2 p = glm::vec2(ndc.x*viewportScale,ndc.y*viewportScale);
+  //glm::vec2 p = glm::vec2(ndc.x*viewportScale,ndc.y*viewportScale);
+  glm::vec2 p = glm::vec2(ndc.x*viewportScale*windowAspect,ndc.y*viewportScale);
+  //glm::vec2 p = glm::vec2(ndc.x*viewportScale/windowAspect,ndc.y*viewportScale);
   //undo translation
   return p - viewportCenter;
 }
@@ -805,7 +814,8 @@ glm::vec2 ndcToWorldCoordinates(glm::vec2 ndc) {
 glm::vec2 mouseToNDC(glm::vec2 mouse) {
   return glm::vec2(
       (2.0f  * mouse.x / (double) windowWidth ) - 1.0f,
-      (-2.0f * mouse.y / (double) windowHeight) + 1.0f);
+      //(-2.0f * mouse.y / (double) windowHeight) + 1.0f);
+      (2.0f * ((windowHeight - mouse.y) / (double) windowHeight)) - 1.0f);
 }
 
 //returns the absoulte distance from the origin in the x or y direction that
@@ -848,7 +858,8 @@ void changeView(glm::vec2 newCenter) {
 void changeProjection(float scale) {
     viewportScale = std::max(MIN_VIEWPORT_SCALE, scale);
     viewportScale = std::min(MAX_VIEWPORT_SCALE, viewportScale);
-    projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
+    //projection = glm::ortho(-viewportScale, viewportScale, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
+    projection = glm::ortho(-viewportScale*windowAspect, viewportScale*windowAspect, -viewportScale, viewportScale, -10.f, 10.0f); //left,right ,bot top , near far
     std::cout << " current viewport scale is " << viewportScale << std::endl;
 }
 
@@ -1356,7 +1367,11 @@ void init() {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_SAMPLES, MSAA);
-  window = glfwCreateWindow(800, 600, "Drop Sound", NULL, NULL);
+
+  windowWidth = 800;
+  windowHeight = 600;
+  window = glfwCreateWindow(windowWidth, windowHeight, "Drop Sound", NULL, NULL);
+  changeProjection(viewportScale);
 
   if ( window == NULL ) 
   {
@@ -1397,8 +1412,9 @@ void init() {
   }
 
   glEnable(GL_MULTISAMPLE);//MSAA
-  glViewport(0, 0, 800, 600);
   glfwGetWindowSize(window,&windowWidth,&windowHeight);
+  //glViewport(0, 0, 800, 600);
+  glViewport(0, 0, windowWidth, windowHeight);
   glClearColor(clearColor.x,clearColor.y,clearColor.z,clearColor.w);
 
 
