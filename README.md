@@ -32,6 +32,12 @@ Additionally, I was motivated by
 - Keyboard shortcuts
 - Linux/Windows Support
 
+# Planned Features
+
+- An Emscripten web target
+- An official debian package release
+- An official Windows release target with an MSI.
+
 # Building from Source
 
 ## Dependencies
