@@ -2,7 +2,9 @@
 
 > A physics based beat synthesizer inspired by the original IOS application **Sound Drop** by **Develoe**
 
-https://github.com/matthewKeville/Sound-Drop-SD/assets/26171573/643f3f75-d8fb-4fe3-acdc-df034eb1fc31
+
+https://github.com/matthewKeville/Sound-Drop-SD/assets/26171573/ecc03bcf-0580-4018-8207-928969ba19c9
+
 
 
 ## What is Sound Drop SD?
