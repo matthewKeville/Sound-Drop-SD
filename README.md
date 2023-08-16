@@ -2,6 +2,8 @@
 
 > A physics based beat synthesizer inspired by the original IOS application **Sound Drop** by **Develoe**
 
+<Main Demo Loop Goes Here>
+
 ## What is Sound Drop SD?
 
 Sound Drop SD is an OpenGL application built with GLFW & SOLOUD that allows you to generate
@@ -37,6 +39,11 @@ Additionally, I was motivated by
 - An Emscripten web target
 - An official debian package release
 - An official Windows release target with an MSI.
+
+# Gallery
+<line manipulation video>
+<spawner manipulation video>
+<Configuration and Help Menu Screenshot>
 
 # Building from Source
 
