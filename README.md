@@ -47,12 +47,7 @@ Additionally, I was motivated by
 - An official debian package release
 - An official Windows release target with an MSI.
 
-# Gallery
-<line manipulation video>
-<spawner manipulation video>
-<Configuration and Help Menu Screenshot>
-
-# Building from Source
+# Building from Source WIP
 
 ## Dependencies
 
