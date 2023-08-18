@@ -24,8 +24,12 @@ Additionally, I was motivated by
   - the absence of the original project in the IOS marketplace
   - an excuse to incorporate some music theory into a programming project
 
-[<img src="showcase/snap1.png" width="300" />](showcase/snap1.png)
-[<img src="showcase/snap2.png" width="300" />](showcase/snap2.png)
+# Gallery
+
+![Screenshot 2023-08-17 21-30-41](https://github.com/matthewKeville/Sound-Drop-SD/assets/26171573/fa439041-15de-4e10-8e5c-8ee6f9e49f01)
+![Screenshot 2023-08-17 21-23-20](https://github.com/matthewKeville/Sound-Drop-SD/assets/26171573/a068bde9-dd08-4e0c-8f98-47937a2d6023)
+![Screenshot 2023-08-17 21-23-43](https://github.com/matthewKeville/Sound-Drop-SD/assets/26171573/cf0a5d94-7c26-4770-bfe1-e8f60c7b0b8e)
+
 
 # Features
 
