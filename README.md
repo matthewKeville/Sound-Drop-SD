@@ -26,9 +26,9 @@ Additionally, I was motivated by
 
 # Gallery
 
-![Screenshot 2023-08-17 21-30-41](https://github.com/matthewKeville/Sound-Drop-SD/assets/26171573/fa439041-15de-4e10-8e5c-8ee6f9e49f01)
-![Screenshot 2023-08-17 21-23-20](https://github.com/matthewKeville/Sound-Drop-SD/assets/26171573/a068bde9-dd08-4e0c-8f98-47937a2d6023)
-![Screenshot 2023-08-17 21-23-43](https://github.com/matthewKeville/Sound-Drop-SD/assets/26171573/cf0a5d94-7c26-4770-bfe1-e8f60c7b0b8e)
+![Screenshot 2023-08-17 21-36-14](https://github.com/matthewKeville/Sound-Drop-SD/assets/26171573/60a7f042-9913-4e6c-bf7d-1e5a5c26d6d7)
+![Screenshot 2023-08-17 21-38-18](https://github.com/matthewKeville/Sound-Drop-SD/assets/26171573/f531ebb7-7426-46c8-9879-b3e6c1c11251)
+![Screenshot 2023-08-17 21-39-16](https://github.com/matthewKeville/Sound-Drop-SD/assets/26171573/f1ca5524-b057-4791-9a07-ed4057930889)
 
 
 # Features
